@@ -277,11 +277,12 @@ class _SealVerificationScreenState extends ConsumerState<SealVerificationScreen>
                       const SizedBox(height: 16),
 
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'Lịch Sử Quét & Lưu Vết Niêm Phong',
-                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.slate900),
+                          const Expanded(
+                            child: Text(
+                              'Lịch Sử Quét & Lưu Vết',
+                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.slate900),
+                            ),
                           ),
                           TextButton.icon(
                             onPressed: _showRecordScanModal,
