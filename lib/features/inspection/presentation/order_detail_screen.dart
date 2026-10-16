@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -8,7 +8,8 @@ import '../providers/inspection_provider.dart';
 
 class OrderDetailScreen extends ConsumerStatefulWidget {
   final InspectionOrder? order;
-  const OrderDetailScreen({super.key, this.order});
+  final String? orderId;
+  const OrderDetailScreen({super.key, this.order, this.orderId});
 
   @override
   ConsumerState<OrderDetailScreen> createState() => _OrderDetailScreenState();
@@ -20,9 +21,16 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _currentOrder = widget.order ??
-        ref.read(inspectionProvider).selectedOrder ??
-        ref.read(inspectionProvider).orders.first;
+    final orders = ref.read(inspectionProvider).orders;
+    if (widget.order != null) {
+      _currentOrder = widget.order!;
+    } else if (widget.orderId != null) {
+      _currentOrder = orders.where((o) => o.id == widget.orderId).firstOrNull ??
+          ref.read(inspectionProvider).selectedOrder ??
+          orders.first;
+    } else {
+      _currentOrder = ref.read(inspectionProvider).selectedOrder ?? orders.first;
+    }
   }
 
   void _showScheduleModal() async {

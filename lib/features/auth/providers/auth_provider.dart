@@ -11,6 +11,12 @@ class AuthState {
   final String inspectorName;
   final String email;
   final String badgeTitle;
+  final String? badgeCode;
+  final String? stationHubId;
+  final String? stationHubName;
+  final String? certificationTitle;
+  final String? phone;
+  final String? avatarUrl;
   final double rating;
   final int completedJobs;
   final double monthlyEarnings;
@@ -23,6 +29,12 @@ class AuthState {
     this.inspectorName = '',
     this.email = '',
     this.badgeTitle = 'Kỹ Thuật Viên Kiểm Định',
+    this.badgeCode,
+    this.stationHubId,
+    this.stationHubName,
+    this.certificationTitle,
+    this.phone,
+    this.avatarUrl,
     this.rating = 0.0,
     this.completedJobs = 0,
     this.monthlyEarnings = 0.0,
@@ -36,6 +48,12 @@ class AuthState {
     String? inspectorName,
     String? email,
     String? badgeTitle,
+    String? badgeCode,
+    String? stationHubId,
+    String? stationHubName,
+    String? certificationTitle,
+    String? phone,
+    String? avatarUrl,
     double? rating,
     int? completedJobs,
     double? monthlyEarnings,
@@ -48,6 +66,12 @@ class AuthState {
       inspectorName: inspectorName ?? this.inspectorName,
       email: email ?? this.email,
       badgeTitle: badgeTitle ?? this.badgeTitle,
+      badgeCode: badgeCode ?? this.badgeCode,
+      stationHubId: stationHubId ?? this.stationHubId,
+      stationHubName: stationHubName ?? this.stationHubName,
+      certificationTitle: certificationTitle ?? this.certificationTitle,
+      phone: phone ?? this.phone,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
       rating: rating ?? this.rating,
       completedJobs: completedJobs ?? this.completedJobs,
       monthlyEarnings: monthlyEarnings ?? this.monthlyEarnings,
@@ -75,6 +99,12 @@ class AuthNotifier extends Notifier<AuthState> {
           email: user['email'] ?? state.email,
           inspectorId: user['id']?.toString() ?? state.inspectorId,
           inspectorName: user['fullName'] ?? user['name'] ?? state.inspectorName,
+          badgeCode: user['badgeCode']?.toString(),
+          stationHubId: user['stationHubId']?.toString(),
+          stationHubName: user['stationHubName']?.toString(),
+          certificationTitle: user['certificationTitle']?.toString(),
+          phone: user['phone']?.toString(),
+          avatarUrl: user['avatarUrl']?.toString(),
         );
       } else {
         state = state.copyWith(isAuthenticated: true);
@@ -93,6 +123,12 @@ class AuthNotifier extends Notifier<AuthState> {
           inspectorId: data['id']?.toString() ?? state.inspectorId,
           inspectorName: data['fullName'] ?? data['name'] ?? state.inspectorName,
           email: data['email'] ?? state.email,
+          badgeCode: data['badgeCode']?.toString() ?? state.badgeCode,
+          stationHubId: data['stationHubId']?.toString() ?? state.stationHubId,
+          stationHubName: data['stationHubName']?.toString() ?? state.stationHubName,
+          certificationTitle: data['certificationTitle']?.toString() ?? state.certificationTitle,
+          phone: data['phone']?.toString() ?? state.phone,
+          avatarUrl: data['avatarUrl']?.toString() ?? state.avatarUrl,
         );
         await _storage.saveUser(Map<String, dynamic>.from(data));
       }

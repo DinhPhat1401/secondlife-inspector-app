@@ -5,6 +5,7 @@ import '../../../core/network/api_endpoints.dart';
 import '../models/checklist_item.dart';
 import '../models/inspection_order.dart';
 import '../models/tamper_seal.dart';
+import 'inspector_stats_provider.dart';
 
 class InspectionState {
   final List<InspectionOrder> orders;
@@ -245,7 +246,7 @@ class InspectionNotifier extends Notifier<InspectionState> {
 
     try {
       await _api.dio.post(
-        ApiEndpoints.submitResult(orderId),
+        ApiEndpoints.submitReport(orderId),
         data: payload,
       );
     } catch (_) {}
@@ -278,6 +279,11 @@ class InspectionNotifier extends Notifier<InspectionState> {
       ),
       isSubmitting: false,
     );
+
+    try {
+      ref.read(inspectorStatsProvider.notifier).refreshAll();
+    } catch (_) {}
+
     return true;
   }
 

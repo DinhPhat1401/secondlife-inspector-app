@@ -6,10 +6,13 @@ class ApiEndpoints {
 
   // Inspector Execution Station
   static const String myAssignedOrders = '/api/v1/inspector/orders';
+  static const String inspectorStats = '/api/v1/inspector/stats';
+  static const String inspectorPayouts = '/api/v1/inspector/payouts';
   static String orderChecklist(String orderId) => '/api/v1/inspector/orders/$orderId/checklist';
   static String scheduleAppointment(String orderId) => '/api/v1/inspector/orders/$orderId/schedule';
   static String startInspection(String orderId) => '/api/v1/inspector/orders/$orderId/start';
-  static String submitResult(String orderId) => '/api/v1/inspector/orders/$orderId/result';
+  static String submitResult(String orderId) => '/api/v1/inspector/orders/$orderId/submit-report';
+  static String submitReport(String orderId) => '/api/v1/inspector/orders/$orderId/submit-report';
   static String generateSeal(String orderId) => '/api/v1/inspector/orders/$orderId/generate-seal';
 
   // Inspection & Tamper Seal Public / General

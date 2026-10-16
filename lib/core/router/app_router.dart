@@ -1,4 +1,4 @@
-﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/providers/auth_provider.dart';
@@ -8,6 +8,7 @@ import '../../features/inspection/presentation/checklist_execution_screen.dart';
 import '../../features/inspection/presentation/order_detail_screen.dart';
 import '../../features/inspection/presentation/seal_scanner_screen.dart';
 import '../../features/inspection/presentation/seal_verification_screen.dart';
+import '../../features/inspection/presentation/inspector_payouts_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
@@ -25,9 +26,18 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/order-detail',
-        builder: (context, state) => OrderDetailScreen(
-          order: state.extra as InspectionOrder?,
-        ),
+        builder: (context, state) {
+          if (state.extra is InspectionOrder) {
+            return OrderDetailScreen(order: state.extra as InspectionOrder);
+          } else if (state.extra is String) {
+            return OrderDetailScreen(orderId: state.extra as String);
+          }
+          return const OrderDetailScreen();
+        },
+      ),
+      GoRoute(
+        path: '/payouts',
+        builder: (context, state) => const InspectorPayoutsScreen(),
       ),
       GoRoute(
         path: '/checklist-execution',
