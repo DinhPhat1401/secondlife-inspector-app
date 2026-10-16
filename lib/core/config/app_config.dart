@@ -1,7 +1,7 @@
-﻿import 'dart:io';
+import 'dart:io';
 
 class AppConfig {
-  static const String appName = 'SecondLife Inspector';
+  static const String appName = 'SecondLife Expert';
   static const String appVersion = '1.0.0';
 
   static String? _customBaseUrl;
