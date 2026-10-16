@@ -1,5 +1,6 @@
-﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/network/api_endpoints.dart';
 import '../../../core/storage/secure_storage_service.dart';
 
 class AuthState {
@@ -15,16 +16,16 @@ class AuthState {
   final double monthlyEarnings;
 
   const AuthState({
-    this.isAuthenticated = true, // Default true for instant technician access
+    this.isAuthenticated = false,
     this.isLoading = false,
     this.errorMessage,
-    this.inspectorId = 'insp-ktv-8821',
-    this.inspectorName = 'KTV. Trần Minh Long',
-    this.email = 'ktv@secondlife.com',
-    this.badgeTitle = 'Kỹ Thuật Viên Trưởng - Cơ Điện & Gia Dụng',
-    this.rating = 4.96,
-    this.completedJobs = 148,
-    this.monthlyEarnings = 18450000,
+    this.inspectorId = '',
+    this.inspectorName = '',
+    this.email = '',
+    this.badgeTitle = 'Kỹ Thuật Viên Kiểm Định',
+    this.rating = 0.0,
+    this.completedJobs = 0,
+    this.monthlyEarnings = 0.0,
   });
 
   AuthState copyWith({
@@ -67,13 +68,35 @@ class AuthNotifier extends Notifier<AuthState> {
   Future<void> _loadStoredSession() async {
     final token = await _storage.getAccessToken();
     final user = await _storage.getUser();
-    if (token != null && user != null) {
-      state = state.copyWith(
-        isAuthenticated: true,
-        email: user['email'] ?? state.email,
-        inspectorName: user['fullName'] ?? user['name'] ?? state.inspectorName,
-      );
+    if (token != null) {
+      if (user != null) {
+        state = state.copyWith(
+          isAuthenticated: true,
+          email: user['email'] ?? state.email,
+          inspectorId: user['id']?.toString() ?? state.inspectorId,
+          inspectorName: user['fullName'] ?? user['name'] ?? state.inspectorName,
+        );
+      } else {
+        state = state.copyWith(isAuthenticated: true);
+      }
+      await fetchProfile();
     }
+  }
+
+  Future<void> fetchProfile() async {
+    try {
+      final response = await _apiClient.dio.get(ApiEndpoints.me);
+      final raw = response.data;
+      final data = (raw is Map && raw.containsKey('data')) ? raw['data'] : raw;
+      if (data is Map<String, dynamic>) {
+        state = state.copyWith(
+          inspectorId: data['id']?.toString() ?? state.inspectorId,
+          inspectorName: data['fullName'] ?? data['name'] ?? state.inspectorName,
+          email: data['email'] ?? state.email,
+        );
+        await _storage.saveUser(Map<String, dynamic>.from(data));
+      }
+    } catch (_) {}
   }
 
   Future<bool> login(String email, String password) async {
@@ -81,20 +104,50 @@ class AuthNotifier extends Notifier<AuthState> {
 
     try {
       final response = await _apiClient.dio.post(
-        '/api/v1/auth/login',
-        data: {'email': email.trim(), 'password': password},
+        ApiEndpoints.login,
+        data: {
+          'email': email.trim().toLowerCase(),
+          'password': password,
+        },
       );
 
-      final data = response.data;
+      final raw = response.data;
+      final data = (raw is Map && raw.containsKey('data')) ? raw['data'] : raw;
+
       String? token;
+      String? refreshToken;
+      Map<String, dynamic> userMap = {};
+
       if (data is Map<String, dynamic>) {
-        token = data['data']?['accessToken'] ?? data['accessToken'] ?? data['token'];
+        token = data['accessToken'] ?? data['token'];
+        refreshToken = data['refreshToken'];
+        if (data['user'] is Map<String, dynamic>) {
+          userMap = data['user'] as Map<String, dynamic>;
+        } else {
+          userMap = data;
+        }
       }
 
-      await _storage.saveTokens(accessToken: token ?? 'demo_token');
+      if (token == null || token.isEmpty) {
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: 'Phản hồi từ máy chủ không hợp lệ: thiếu mã truy cập',
+        );
+        return false;
+      }
+
+      await _storage.saveTokens(
+        accessToken: token,
+        refreshToken: refreshToken,
+      );
+
+      final resolvedName = userMap['fullName'] ?? userMap['name'] ?? email;
+      final resolvedId = userMap['id']?.toString() ?? '';
+
       await _storage.saveUser({
+        'id': resolvedId,
         'email': email,
-        'fullName': 'KTV. Trần Minh Long',
+        'fullName': resolvedName,
         'role': 'INSPECTOR',
       });
 
@@ -102,27 +155,28 @@ class AuthNotifier extends Notifier<AuthState> {
         isAuthenticated: true,
         isLoading: false,
         email: email,
+        inspectorId: resolvedId,
+        inspectorName: resolvedName,
       );
+
+      await fetchProfile();
       return true;
     } catch (e) {
-      // For demo / local sandbox without backend running or with test credentials
-      if (email.contains('ktv') || email.contains('inspector') || password.isNotEmpty) {
-        state = state.copyWith(
-          isAuthenticated: true,
-          isLoading: false,
-          email: email,
-        );
-        return true;
-      }
       state = state.copyWith(
         isLoading: false,
-        errorMessage: 'Email hoặc mật khẩu không chính xác',
+        errorMessage: 'Email hoặc mật khẩu không chính xác hoặc lỗi kết nối máy chủ.',
       );
       return false;
     }
   }
 
   Future<void> logout() async {
+    try {
+      final refreshToken = await _storage.getRefreshToken();
+      if (refreshToken != null) {
+        await _apiClient.dio.post('/api/auth/logout', data: {'refreshToken': refreshToken});
+      }
+    } catch (_) {}
     await _storage.clearAuth();
     state = const AuthState(isAuthenticated: false);
   }

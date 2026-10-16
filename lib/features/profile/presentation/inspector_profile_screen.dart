@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -75,7 +75,7 @@ class InspectorProfileScreen extends ConsumerWidget {
                               children: [
                                 Flexible(
                                   child: Text(
-                                    auth.inspectorName,
+                                    auth.inspectorName.isNotEmpty ? auth.inspectorName : 'Kỹ Thuật Viên',
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontWeight: FontWeight.bold,
@@ -89,7 +89,7 @@ class InspectorProfileScreen extends ConsumerWidget {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              auth.badgeTitle,
+                              auth.email.isNotEmpty ? auth.email : auth.badgeTitle,
                               style: const TextStyle(color: Colors.white70, fontSize: 12),
                             ),
                             const SizedBox(height: 6),
@@ -99,9 +99,9 @@ class InspectorProfileScreen extends ConsumerWidget {
                                 color: Colors.black.withValues(alpha: 0.25),
                                 borderRadius: BorderRadius.circular(6),
                               ),
-                              child: const Text(
-                                'Mã thẻ: SL-TECH-8821',
-                                style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                              child: Text(
+                                'Mã KTV: ${auth.inspectorId.isNotEmpty ? auth.inspectorId : "Tài khoản đối tác"}',
+                                style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
                               ),
                             ),
                           ],
@@ -113,11 +113,11 @@ class InspectorProfileScreen extends ConsumerWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _buildProfileStat('Đơn Đã Xử Lý', '${auth.completedJobs}'),
+                      _buildProfileStat('Đơn Đã Xử Lý', auth.completedJobs > 0 ? '${auth.completedJobs}' : '--'),
                       Container(height: 32, width: 1, color: Colors.white24),
-                      _buildProfileStat('Đánh Giá KTV', '${auth.rating} ⭐'),
+                      _buildProfileStat('Đánh Giá KTV', auth.rating > 0 ? '${auth.rating} ⭐' : '--'),
                       Container(height: 32, width: 1, color: Colors.white24),
-                      _buildProfileStat('Đúng Hẹn', '98.6%'),
+                      _buildProfileStat('Đúng Hẹn', '--'),
                     ],
                   ),
                 ],
@@ -143,12 +143,12 @@ class InspectorProfileScreen extends ConsumerWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
-                            color: AppColors.passGreenLight,
+                            color: AppColors.slate100,
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: const Text(
-                            'Đã duyệt',
-                            style: TextStyle(color: AppColors.passGreen, fontSize: 11, fontWeight: FontWeight.bold),
+                            'Chờ đối soát',
+                            style: TextStyle(color: AppColors.slate600, fontSize: 11, fontWeight: FontWeight.bold),
                           ),
                         ),
                       ],
@@ -158,13 +158,18 @@ class InspectorProfileScreen extends ConsumerWidget {
                       currencyFormatter.format(auth.monthlyEarnings),
                       style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: AppColors.slate900),
                     ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Số liệu thu nhập và phụ cấp di chuyển đang được kết nối với cổng đối soát hệ thống backend.',
+                      style: TextStyle(fontSize: 12, color: AppColors.slate500, fontStyle: FontStyle.italic),
+                    ),
                     const SizedBox(height: 12),
                     const Divider(),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text('Thù lao kỹ thuật theo đơn:', style: TextStyle(color: AppColors.slate600, fontSize: 13)),
-                        Text(currencyFormatter.format(14200000), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                        Text(currencyFormatter.format(0), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -172,7 +177,7 @@ class InspectorProfileScreen extends ConsumerWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text('Phụ cấp xăng xe & di chuyển:', style: TextStyle(color: AppColors.slate600, fontSize: 13)),
-                        Text(currencyFormatter.format(4250000),
+                        Text(currencyFormatter.format(0),
                             style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.mapBlue, fontSize: 13)),
                       ],
                     ),

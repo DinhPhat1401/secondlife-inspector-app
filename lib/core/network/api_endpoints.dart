@@ -1,8 +1,8 @@
 class ApiEndpoints {
   // Auth
-  static const String login = '/api/v1/auth/login';
-  static const String register = '/api/v1/auth/register';
-  static const String me = '/api/v1/auth/me';
+  static const String login = '/api/auth/login';
+  static const String register = '/api/auth/register';
+  static const String me = '/api/v1/users/me';
 
   // Inspector Execution Station
   static const String myAssignedOrders = '/api/v1/inspector/orders';

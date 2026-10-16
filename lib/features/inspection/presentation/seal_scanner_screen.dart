@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -20,7 +20,7 @@ class _SealScannerScreenState extends ConsumerState<SealScannerScreen> {
   bool _isTorchOn = false;
   bool _isScanned = false;
   final TextEditingController _manualInputController =
-      TextEditingController(text: 'SL-SEAL-8924-A1');
+      TextEditingController();
 
   @override
   void dispose() {
@@ -211,7 +211,7 @@ class _SealScannerScreenState extends ConsumerState<SealScannerScreen> {
                 ElevatedButton.icon(
                   onPressed: _showManualInputDialog,
                   icon: const Icon(Icons.edit_note, size: 18),
-                  label: const Text('Nhập Mã Tem Bằng Tay (Demo Sandbox)'),
+                  label: const Text('Nhập mã tem thủ công'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.slate800,
                     foregroundColor: Colors.white,
