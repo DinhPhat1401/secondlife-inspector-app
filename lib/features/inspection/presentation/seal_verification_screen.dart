@@ -1,5 +1,7 @@
-﻿import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
 import '../providers/inspection_provider.dart';
@@ -29,6 +31,17 @@ class _SealVerificationScreenState extends ConsumerState<SealVerificationScreen>
     String selectedCondition = 'INTACT';
     final locationController = TextEditingController(text: 'Khu Công Nghệ Cao, TP. Thủ Đức, TP.HCM');
     final noteController = TextEditingController(text: 'Tem còn nguyên lớp keo chống bóc vỡ, không có dấu hiệu nạy mở.');
+    double? detectedLat;
+    double? detectedLng;
+
+    // Tự động lấy tọa độ GPS
+    Geolocator.getCurrentPosition(
+      locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium, timeLimit: Duration(seconds: 3)),
+    ).then((pos) {
+      detectedLat = pos.latitude;
+      detectedLng = pos.longitude;
+      locationController.text = 'Tọa độ GPS: ${pos.latitude.toStringAsFixed(6)}, ${pos.longitude.toStringAsFixed(6)}';
+    }).catchError((_) {});
 
     showModalBottomSheet(
       context: context,
@@ -63,9 +76,12 @@ class _SealVerificationScreenState extends ConsumerState<SealVerificationScreen>
                 initialValue: selectedStage,
                 decoration: const InputDecoration(labelText: 'Giai đoạn quét tem'),
                 items: const [
-                  DropdownMenuItem(value: 'INITIAL_SEAL', child: Text('Dán tem ban đầu (KTV)')),
-                  DropdownMenuItem(value: 'CARRIER_HANDOVER', child: Text('Bàn giao vận chuyển')),
-                  DropdownMenuItem(value: 'DELIVERED_BUYER', child: Text('Giao cho người mua')),
+                  DropdownMenuItem(value: 'INITIAL_SEAL', child: Text('KTV dán tem niêm phong ban đầu')),
+                  DropdownMenuItem(value: 'SELLER_TO_CENTER', child: Text('Người bán gửi hàng tới Hub')),
+                  DropdownMenuItem(value: 'CENTER_RECEIVE', child: Text('Hub kiểm định nhận hàng & lưu kho')),
+                  DropdownMenuItem(value: 'CARRIER_HANDOVER', child: Text('Bàn giao tài xế vận chuyển')),
+                  DropdownMenuItem(value: 'DELIVERED_BUYER', child: Text('Đã giao tận tay người mua')),
+                  DropdownMenuItem(value: 'RETURN_TO_SELLER', child: Text('Hoàn trả hàng về cho người bán')),
                 ],
                 onChanged: (val) => setModalState(() => selectedStage = val!),
               ),
@@ -82,7 +98,10 @@ class _SealVerificationScreenState extends ConsumerState<SealVerificationScreen>
               const SizedBox(height: 12),
               TextField(
                 controller: locationController,
-                decoration: const InputDecoration(labelText: 'Địa điểm quét (GPS / Địa chỉ)'),
+                decoration: const InputDecoration(
+                  labelText: 'Địa điểm quét (GPS / Địa chỉ)',
+                  suffixIcon: Icon(Icons.my_location, size: 20, color: AppColors.primary),
+                ),
               ),
               const SizedBox(height: 12),
               TextField(
@@ -99,12 +118,14 @@ class _SealVerificationScreenState extends ConsumerState<SealVerificationScreen>
                         scanStage: selectedStage,
                         sealCondition: selectedCondition,
                         locationText: locationController.text,
+                        latitude: detectedLat,
+                        longitude: detectedLng,
                         note: noteController.text,
                       );
                   if (ok && mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Đã ghi nhận mốc quét tem vào sổ lưu vết điện tử!'),
+                        content: Text('Đã ghi nhận mốc quét tem kèm tọa độ GPS thành công!'),
                         backgroundColor: AppColors.passGreen,
                       ),
                     );
@@ -195,6 +216,27 @@ class _SealVerificationScreenState extends ConsumerState<SealVerificationScreen>
                               ],
                             ),
                             const SizedBox(height: 16),
+                            if (cert.productImageUrl != null && cert.productImageUrl!.isNotEmpty) ...[
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: CachedNetworkImage(
+                                  imageUrl: cert.productImageUrl!,
+                                  width: 80,
+                                  height: 80,
+                                  fit: BoxFit.cover,
+                                  placeholder: (_, _) => Container(
+                                    width: 80,
+                                    height: 80,
+                                    color: Colors.white24,
+                                    child: const Center(
+                                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                    ),
+                                  ),
+                                  errorWidget: (_, _, _) => const Icon(Icons.devices, color: Colors.white70, size: 40),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                            ],
                             Text(
                               cert.tamperSealId,
                               style: const TextStyle(
@@ -346,6 +388,23 @@ class _SealVerificationScreenState extends ConsumerState<SealVerificationScreen>
                                         ),
                                       ],
                                     ),
+                                  if (log.hasCoordinates) ...[
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.gps_fixed, size: 12, color: AppColors.primary),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          'GPS: ${log.latitude!.toStringAsFixed(5)}, ${log.longitude!.toStringAsFixed(5)}',
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColors.primaryDark,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
                                   if (log.note != null && log.note!.isNotEmpty) ...[
                                     const SizedBox(height: 4),
                                     Text(

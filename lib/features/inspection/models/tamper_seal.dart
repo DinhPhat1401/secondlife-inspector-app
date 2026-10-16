@@ -1,11 +1,13 @@
-﻿class InspectionSealLog {
+class InspectionSealLog {
   final String id;
   final String tamperSealId;
   final String? scannedBy;
   final String? scannedByName;
-  final String scanStage; // INITIAL_SEAL, CARRIER_HANDOVER, DELIVERED_BUYER
+  final String scanStage; // INITIAL_SEAL, CARRIER_HANDOVER, DELIVERED_BUYER, SELLER_TO_CENTER, CENTER_RECEIVE, RETURN_TO_SELLER
   final String sealCondition; // INTACT, TAMPERED
   final String? locationText;
+  final double? latitude;
+  final double? longitude;
   final String? note;
   final DateTime scannedAt;
 
@@ -17,20 +19,34 @@
     required this.scanStage,
     required this.sealCondition,
     this.locationText,
+    this.latitude,
+    this.longitude,
     this.note,
     required this.scannedAt,
   });
 
   factory InspectionSealLog.fromJson(Map<String, dynamic> json) {
+    // Hỗ trợ cả key stage (BE docs) và scanStage (DTO response)
+    final stageRaw = json['stage'] ?? json['scanStage'] ?? 'INITIAL_SEAL';
+    final noteRaw = json['notes'] ?? json['note'];
+
+    double? parseCoord(dynamic val) {
+      if (val is num) return val.toDouble();
+      if (val is String) return double.tryParse(val);
+      return null;
+    }
+
     return InspectionSealLog(
       id: json['id']?.toString() ?? '',
       tamperSealId: json['tamperSealId'] ?? '',
       scannedBy: json['scannedBy']?.toString(),
       scannedByName: json['scannedByName'],
-      scanStage: json['scanStage'] ?? 'INITIAL_SEAL',
+      scanStage: stageRaw.toString(),
       sealCondition: json['sealCondition'] ?? 'INTACT',
       locationText: json['locationText'],
-      note: json['note'],
+      latitude: parseCoord(json['latitude']),
+      longitude: parseCoord(json['longitude']),
+      note: noteRaw?.toString(),
       scannedAt: json['scannedAt'] != null
           ? DateTime.tryParse(json['scannedAt'].toString()) ?? DateTime.now()
           : DateTime.now(),
@@ -41,16 +57,23 @@
     switch (scanStage) {
       case 'INITIAL_SEAL':
         return 'Dán tem niêm phong ban đầu (KTV)';
+      case 'SELLER_TO_CENTER':
+        return 'Người bán bàn giao gửi tới Hub';
+      case 'CENTER_RECEIVE':
+        return 'Hub tiếp nhận niêm phong & lưu kho';
       case 'CARRIER_HANDOVER':
-        return 'Bàn giao đơn vị vận chuyển';
+        return 'Bàn giao tài xế vận chuyển';
       case 'DELIVERED_BUYER':
-        return 'Người mua nhận hàng & kiểm tra tem';
+        return 'Giao tận tay người mua & kiểm tra tem';
+      case 'RETURN_TO_SELLER':
+        return 'Hoàn trả hàng về cho người bán';
       default:
         return scanStage;
     }
   }
 
-  bool get isIntact => sealCondition == 'INTACT';
+  bool get isIntact => sealCondition.toUpperCase() == 'INTACT';
+  bool get hasCoordinates => latitude != null && longitude != null;
 }
 
 class InspectionSealVerification {
@@ -58,6 +81,7 @@ class InspectionSealVerification {
   final String? inspectionOrderId;
   final String? postId;
   final String productTitle;
+  final String? productImageUrl; // [MỚI] Ảnh sản phẩm từ BE
   final String? productModel;
   final String? productBrand;
   final int conditionScore;
@@ -68,6 +92,7 @@ class InspectionSealVerification {
   final DateTime? inspectedAt;
   final String currentSealStatus; // INTACT, TAMPERED
   final bool isOfficialSecondLifeSeal;
+  final String? reportSummary;
   final List<InspectionSealLog> scanHistory;
 
   InspectionSealVerification({
@@ -75,6 +100,7 @@ class InspectionSealVerification {
     this.inspectionOrderId,
     this.postId,
     required this.productTitle,
+    this.productImageUrl,
     this.productModel,
     this.productBrand,
     required this.conditionScore,
@@ -85,35 +111,46 @@ class InspectionSealVerification {
     this.inspectedAt,
     required this.currentSealStatus,
     required this.isOfficialSecondLifeSeal,
+    this.reportSummary,
     this.scanHistory = const [],
   });
 
   factory InspectionSealVerification.fromJson(Map<String, dynamic> json) {
-    final historyList = (json['scanHistory'] as List<dynamic>?)
+    // Hỗ trợ scanLogs và scanHistory
+    final rawLogs = json['scanLogs'] ?? json['scanHistory'];
+    final historyList = (rawLogs as List<dynamic>?)
             ?.map((e) => InspectionSealLog.fromJson(e as Map<String, dynamic>))
             .toList() ??
         [];
 
+    final orderId = json['orderId'] ?? json['inspectionOrderId'];
+    final center = json['centerName'] ?? json['inspectionCenterName'];
+    final inspector = json['sealedByName'] ?? json['inspectorName'];
+    final inspectedTimeRaw = json['sealedAt'] ?? json['inspectedAt'];
+    final statusRaw = json['status'] ?? json['inspectionStatus'] ?? 'PASSED';
+
     return InspectionSealVerification(
       tamperSealId: json['tamperSealId'] ?? '',
-      inspectionOrderId: json['inspectionOrderId']?.toString(),
+      inspectionOrderId: orderId?.toString(),
       postId: json['postId']?.toString(),
-      productTitle: json['productTitle'] ?? 'Sản phẩm kiểm định',
+      productTitle: json['productTitle'] ?? 'Sản phẩm kiểm định SecondLife',
+      productImageUrl: json['productImageUrl']?.toString(),
       productModel: json['productModel'],
       productBrand: json['productBrand'],
-      conditionScore: json['conditionScore'] is int ? json['conditionScore'] : 90,
+      conditionScore: (json['conditionScore'] as num?)?.toInt() ?? 90,
       conditionGrade: json['conditionGrade'] ?? 'A',
-      inspectionStatus: json['inspectionStatus'] ?? 'PASSED',
-      inspectionCenterName: json['inspectionCenterName'] ?? 'Trung tâm Kỹ thuật SecondLife HCM',
-      inspectorName: json['inspectorName'] ?? 'KTV Chuyên nghiệp',
-      inspectedAt: json['inspectedAt'] != null
-          ? DateTime.tryParse(json['inspectedAt'].toString())
+      inspectionStatus: statusRaw.toString(),
+      inspectionCenterName: center?.toString() ?? 'Trung tâm Kỹ thuật SecondLife HCM',
+      inspectorName: inspector?.toString() ?? 'KTV Chuyên nghiệp',
+      inspectedAt: inspectedTimeRaw != null
+          ? DateTime.tryParse(inspectedTimeRaw.toString())
           : null,
       currentSealStatus: json['currentSealStatus'] ?? 'INTACT',
       isOfficialSecondLifeSeal: json['isOfficialSecondLifeSeal'] ?? true,
+      reportSummary: json['reportSummary']?.toString(),
       scanHistory: historyList,
     );
   }
 
-  bool get isIntact => currentSealStatus == 'INTACT';
+  bool get isIntact => currentSealStatus.toUpperCase() == 'INTACT';
 }

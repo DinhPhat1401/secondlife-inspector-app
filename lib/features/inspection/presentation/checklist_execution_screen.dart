@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
@@ -23,6 +23,7 @@ class _ChecklistExecutionScreenState extends ConsumerState<ChecklistExecutionScr
       text: 'https://cloudinary.com/secondlife/inspection/video_proof_daikin.mp4');
   final _overallNoteController = TextEditingController(
       text: 'Máy nén hoạt động êm ái, bo mạch nguyên zin chưa qua sửa chữa, độ lạnh đạt chuẩn 16°C sau 10 phút.');
+  bool _isGeneratingSeal = false;
 
   @override
   void initState() {
@@ -47,6 +48,93 @@ class _ChecklistExecutionScreenState extends ConsumerState<ChecklistExecutionScr
     Future.microtask(() {
       ref.read(inspectionProvider.notifier).fetchChecklistForOrder(_order.id);
     });
+  }
+
+  Future<void> _generateSeal() async {
+    setState(() => _isGeneratingSeal = true);
+    final sealCode = await ref.read(inspectionProvider.notifier).generateSeal(_order.id);
+    setState(() => _isGeneratingSeal = false);
+
+    if (sealCode != null && mounted) {
+      setState(() {
+        _sealIdController.text = sealCode;
+        if (_barcodeController.text.isEmpty || _barcodeController.text.startsWith('SL')) {
+          _barcodeController.text = sealCode.replaceAll('-', '');
+        }
+      });
+
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.qr_code_2_rounded, color: AppColors.primary, size: 28),
+              SizedBox(width: 8),
+              Text('Mã Tem Niêm Phong'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.primaryLight, width: 2),
+                ),
+                child: Column(
+                  children: [
+                    const Icon(Icons.qr_code_scanner, size: 100, color: AppColors.primary),
+                    const SizedBox(height: 12),
+                    SelectableText(
+                      sealCode,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.2,
+                        color: AppColors.slate900,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Mã tem đã mã hóa HMAC SHA-256 Checksum chống làm giả',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 11, color: AppColors.slate500),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'KTV in tem hoặc dán nhãn vật lý có mã QR tương ứng lên thiết bị trước khi đóng gói.',
+                style: TextStyle(fontSize: 12, color: AppColors.slate700),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('ĐÃ HIỂU'),
+            ),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Đã gán mã tem niêm phong vào biên bản thẩm định!'),
+                    backgroundColor: AppColors.passGreen,
+                  ),
+                );
+              },
+              icon: const Icon(Icons.check, size: 16),
+              label: const Text('XÁC NHẬN DÁN TEM'),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   @override
@@ -403,6 +491,30 @@ class _ChecklistExecutionScreenState extends ConsumerState<ChecklistExecutionScr
                         ),
                       ),
                     ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: _isGeneratingSeal ? null : _generateSeal,
+                        icon: _isGeneratingSeal
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.auto_awesome, color: AppColors.primary, size: 18),
+                        label: Text(
+                          _isGeneratingSeal ? 'Đang sinh mã bảo mật...' : 'Sinh mã tem QR niêm phong (Checksum SHA-256)',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          side: const BorderSide(color: AppColors.primary),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: _barcodeController,
@@ -416,6 +528,7 @@ class _ChecklistExecutionScreenState extends ConsumerState<ChecklistExecutionScr
                       controller: _videoUrlController,
                       decoration: const InputDecoration(
                         labelText: 'Đường dẫn Video kiểm tra máy (Cloudinary / S3)',
+                        helperText: 'Lưu trữ bằng chứng video kiểm định có hiệu lực trong vòng 14 ngày',
                         prefixIcon: Icon(Icons.videocam_outlined, color: AppColors.mapBlue),
                       ),
                     ),

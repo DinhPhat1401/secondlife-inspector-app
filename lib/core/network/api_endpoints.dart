@@ -1,4 +1,4 @@
-﻿class ApiEndpoints {
+class ApiEndpoints {
   // Auth
   static const String login = '/api/v1/auth/login';
   static const String register = '/api/v1/auth/register';
@@ -10,6 +10,7 @@
   static String scheduleAppointment(String orderId) => '/api/v1/inspector/orders/$orderId/schedule';
   static String startInspection(String orderId) => '/api/v1/inspector/orders/$orderId/start';
   static String submitResult(String orderId) => '/api/v1/inspector/orders/$orderId/result';
+  static String generateSeal(String orderId) => '/api/v1/inspector/orders/$orderId/generate-seal';
 
   // Inspection & Tamper Seal Public / General
   static String orderDetails(String orderId) => '/api/v1/inspection/orders/$orderId';
