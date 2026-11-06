@@ -1,4 +1,4 @@
-﻿name: secondlife_app_inspector
+name: secondlife_app_inspector
 description: "SecondLife Mobile App for Technicians & Inspectors (KTV) - On-site Inspection, QR Tamper Seal Verification & Quality Checklists"
 publish_to: 'none'
 version: 1.0.0+1
@@ -32,3 +32,6 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/images/
+

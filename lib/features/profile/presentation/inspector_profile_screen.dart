@@ -164,12 +164,19 @@ class InspectorProfileScreen extends ConsumerWidget {
                         Container(height: 32, width: 1, color: Colors.white24),
                         _buildProfileStat(
                           'Đánh Giá KTV',
-                          '${(stats?.averageRating ?? 5.0).toStringAsFixed(1)} ⭐',
+                          ((stats?.completedJobs ?? auth.completedJobs) > 0 && (stats?.averageRating ?? 0.0) > 0)
+                              ? (stats!.averageRating).toStringAsFixed(1)
+                              : '--',
+                          icon: ((stats?.completedJobs ?? auth.completedJobs) > 0 && (stats?.averageRating ?? 0.0) > 0)
+                              ? const Icon(Icons.star_rounded, size: 16, color: Colors.amber)
+                              : null,
                         ),
                         Container(height: 32, width: 1, color: Colors.white24),
                         _buildProfileStat(
                           'Đúng Hẹn',
-                          '${(stats?.onTimeRate ?? 100.0).toStringAsFixed(1)}%',
+                          ((stats?.completedJobs ?? auth.completedJobs) > 0)
+                              ? '${(stats?.onTimeRate ?? 0.0).toStringAsFixed(1)}%'
+                              : '--',
                         ),
                       ],
                     ),
@@ -347,10 +354,19 @@ class InspectorProfileScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildProfileStat(String label, String value) {
+  Widget _buildProfileStat(String label, String value, {Widget? icon}) {
     return Column(
       children: [
-        Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+            if (icon != null) ...[
+              const SizedBox(width: 4),
+              icon,
+            ],
+          ],
+        ),
         const SizedBox(height: 2),
         Text(label, style: const TextStyle(color: Colors.white70, fontSize: 11)),
       ],

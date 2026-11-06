@@ -85,8 +85,12 @@ class AuthNotifier extends Notifier<AuthState> {
 
   @override
   AuthState build() {
-    _loadStoredSession();
+    Future.microtask(() => _loadStoredSession());
     return const AuthState();
+  }
+
+  Future<void> checkAuth() async {
+    await _loadStoredSession();
   }
 
   Future<void> _loadStoredSession() async {

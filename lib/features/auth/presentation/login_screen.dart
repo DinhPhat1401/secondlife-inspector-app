@@ -1,6 +1,7 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/config/app_config.dart';
 import '../../../core/theme/app_colors.dart';
 import '../providers/auth_provider.dart';
 
@@ -13,8 +14,8 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController(text: 'ktv@secondlife.com');
-  final _passwordController = TextEditingController(text: 'Inspector@123');
+  final _emailController = TextEditingController(text: 'inspector@secondlife.com');
+  final _passwordController = TextEditingController(text: '123456');
   bool _obscurePassword = true;
 
   @override
@@ -22,6 +23,91 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  void _showServerUrlDialog() {
+    final controller = TextEditingController(text: AppConfig.baseUrl);
+    showDialog(
+      context: context,
+      builder: (dialogCtx) {
+        return AlertDialog(
+          title: const Text('Cấu hình URL Máy chủ', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Nhập địa chỉ máy chủ backend hoặc chọn nhanh:',
+                style: TextStyle(fontSize: 13, color: AppColors.slate600),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller,
+                decoration: const InputDecoration(
+                  labelText: 'Base URL',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  ActionChip(
+                    avatar: const Icon(Icons.flash_on, size: 14, color: AppColors.primary),
+                    label: const Text('Ngrok Tunnel', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                    onPressed: () => controller.text = 'https://clinking-slicing-visibly.ngrok-free.dev',
+                  ),
+                  ActionChip(
+                    avatar: const Icon(Icons.usb, size: 14, color: AppColors.slate600),
+                    label: const Text('ADB USB (127.0.0.1)', style: TextStyle(fontSize: 12)),
+                    onPressed: () => controller.text = 'http://127.0.0.1:8080',
+                  ),
+                  ActionChip(
+                    avatar: const Icon(Icons.wifi, size: 14, color: AppColors.slate600),
+                    label: const Text('Wi-Fi PC (172.16.30.181)', style: TextStyle(fontSize: 12)),
+                    onPressed: () => controller.text = 'http://172.16.30.181:8080',
+                  ),
+                  ActionChip(
+                    avatar: const Icon(Icons.phone_android, size: 14, color: AppColors.slate600),
+                    label: const Text('Emulator (10.0.2.2)', style: TextStyle(fontSize: 12)),
+                    onPressed: () => controller.text = 'http://10.0.2.2:8080',
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final url = controller.text.trim();
+                if (url.isNotEmpty) {
+                  await AppConfig.setCustomBaseUrl(url);
+                  if (dialogCtx.mounted) {
+                    Navigator.pop(dialogCtx);
+                  }
+                  if (mounted) {
+                    setState(() {});
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Đã cập nhật máy chủ: ${AppConfig.baseUrl}'),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                }
+              },
+              child: const Text('Lưu'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _submit() async {
@@ -57,20 +143,31 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       width: 80,
                       height: 80,
                       decoration: BoxDecoration(
-                        color: AppColors.primary,
                         borderRadius: BorderRadius.circular(22),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.3),
+                            color: Colors.black.withValues(alpha: 0.08),
                             blurRadius: 16,
                             offset: const Offset(0, 6),
                           ),
                         ],
                       ),
-                      child: const Icon(
-                        Icons.verified_user_rounded,
-                        color: Colors.white,
-                        size: 44,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(22),
+                        child: Image.asset(
+                          'assets/images/logo.png',
+                          width: 80,
+                          height: 80,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => Container(
+                            color: AppColors.primary,
+                            child: const Icon(
+                              Icons.verified_user_rounded,
+                              color: Colors.white,
+                              size: 44,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -182,11 +279,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                   ),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
                   OutlinedButton.icon(
                     onPressed: () {
-                      _emailController.text = 'ktv@secondlife.com';
-                      _passwordController.text = 'Inspector@123';
+                      _emailController.text = 'inspector@secondlife.com';
+                      _passwordController.text = '123456';
                     },
                     icon: const Icon(Icons.touch_app, size: 18),
                     label: const Text('Điền mẫu tài khoản KTV thử nghiệm'),
@@ -196,9 +293,39 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 16),
+                  // Backend URL config button
+                  Center(
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(20),
+                      onTap: _showServerUrlDialog,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: AppColors.slate100,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: AppColors.slate200),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.dns_outlined, size: 14, color: AppColors.slate600),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Máy chủ: ${AppConfig.baseUrl}',
+                              style: const TextStyle(fontSize: 11, color: AppColors.slate600, fontWeight: FontWeight.w500),
+                            ),
+                            const SizedBox(width: 4),
+                            const Icon(Icons.edit_outlined, size: 12, color: AppColors.slate400),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 28),
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     decoration: BoxDecoration(
                       color: AppColors.slate100,
                       borderRadius: BorderRadius.circular(10),
@@ -208,9 +335,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       children: [
                         Icon(Icons.security, size: 16, color: AppColors.primary),
                         SizedBox(width: 8),
-                        Text(
-                          'Bảo mật theo tiêu chuẩn kiểm định SecondLife Hub',
-                          style: TextStyle(fontSize: 12, color: AppColors.slate600, fontWeight: FontWeight.w500),
+                        Flexible(
+                          child: Text(
+                            'Bảo mật theo tiêu chuẩn kiểm định SecondLife Hub',
+                            style: TextStyle(fontSize: 12, color: AppColors.slate600, fontWeight: FontWeight.w500),
+                            textAlign: TextAlign.center,
+                          ),
                         ),
                       ],
                     ),

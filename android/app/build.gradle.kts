@@ -1,4 +1,4 @@
-﻿plugins {
+plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
@@ -16,7 +16,7 @@ android {
 
     defaultConfig {
         applicationId = "com.secondlife.secondlife_app_inspector"
-        minSdk = 23
+        minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

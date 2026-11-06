@@ -287,13 +287,24 @@ class _InspectorPayoutsScreenState extends ConsumerState<InspectorPayoutsScreen>
                           color: item.isAtHome ? AppColors.mapBlue.withValues(alpha: 0.12) : Colors.purple.shade50,
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: Text(
-                          item.isAtHome ? '📍 Tận nơi' : '🏢 Tại trạm',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: item.isAtHome ? AppColors.mapBlue : Colors.purple.shade700,
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              item.isAtHome ? Icons.home_outlined : Icons.apartment_outlined,
+                              size: 13,
+                              color: item.isAtHome ? AppColors.mapBlue : Colors.purple.shade700,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              item.isAtHome ? 'Tận nơi' : 'Tại trạm',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: item.isAtHome ? AppColors.mapBlue : Colors.purple.shade700,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       const SizedBox(width: 6),

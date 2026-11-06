@@ -20,6 +20,7 @@ class ApiClient {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          'ngrok-skip-browser-warning': 'true',
         },
       ),
     );
@@ -31,6 +32,7 @@ class ApiClient {
     return QueuedInterceptorsWrapper(
       onRequest: (options, handler) async {
         options.baseUrl = AppConfig.baseUrl;
+        options.headers['ngrok-skip-browser-warning'] = 'true';
 
         final path = options.path;
         if (!path.startsWith('/api/v1/auth/login') &&

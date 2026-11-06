@@ -31,55 +31,77 @@ class _OrdersListScreenState extends ConsumerState<OrdersListScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        titleSpacing: 16,
+        elevation: 0.5,
+        backgroundColor: Colors.white,
+        title: Row(
           children: [
-            Row(
-              children: [
-                Flexible(
-                  child: Text(
-                    auth.inspectorName.isNotEmpty ? auth.inspectorName : 'Kỹ Thuật Viên',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.slate900),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.asset(
+                'assets/images/logo.png',
+                height: 36,
+                width: 36,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) => const CircleAvatar(
+                  radius: 18,
+                  backgroundColor: AppColors.primaryContainer,
+                  child: Icon(Icons.engineering, color: AppColors.primaryDark, size: 20),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          auth.inspectorName.isNotEmpty ? auth.inspectorName : 'Kỹ Thuật Viên',
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.slate900),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryContainer,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          'Trực Ca',
+                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primaryDark),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 1),
+                  Text(
+                    auth.stationHubName ?? 'Trạm Điều Phối Thủ Đức',
+                    style: const TextStyle(fontSize: 11, color: AppColors.slate500, fontWeight: FontWeight.normal),
                     overflow: TextOverflow.ellipsis,
                   ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryContainer,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Text(
-                    'Đang Trực Ca',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primaryDark),
-                  ),
-                ),
-              ],
-            ),
-            Text(
-              auth.stationHubName ?? 'Trạm Điều Phối & Nhiệm Vụ Kiểm Định',
-              style: const TextStyle(fontSize: 12, color: AppColors.slate500, fontWeight: FontWeight.normal),
-              overflow: TextOverflow.ellipsis,
+                ],
+              ),
             ),
           ],
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.receipt_long_outlined),
-            tooltip: 'Đối soát thù lao',
-            onPressed: () => context.push('/payouts'),
+            icon: const Icon(Icons.chat_bubble_outline_rounded, size: 23),
+            tooltip: 'Tin nhắn điều phối',
+            onPressed: () => context.push('/chats'),
           ),
           IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'Làm mới',
-            onPressed: () async {
-              await Future.wait([
-                ref.read(inspectionProvider.notifier).fetchOrders(),
-                ref.read(inspectorStatsProvider.notifier).refreshAll(),
-              ]);
-            },
+            icon: const Icon(Icons.notifications_none_rounded, size: 26),
+            tooltip: 'Thông báo nhiệm vụ',
+            onPressed: () => context.push('/notifications'),
           ),
+          const SizedBox(width: 6),
         ],
       ),
       body: RefreshIndicator(
@@ -157,17 +179,21 @@ class _OrdersListScreenState extends ConsumerState<OrdersListScreen> {
             // Orders List
             if (inspectionState.filteredOrders.isEmpty)
               const SliverFillRemaining(
+                hasScrollBody: false,
                 child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.inbox_outlined, size: 64, color: AppColors.slate400),
-                      SizedBox(height: 12),
-                      Text(
-                        'Không có đơn kiểm định phù hợp',
-                        style: TextStyle(color: AppColors.slate600, fontSize: 16, fontWeight: FontWeight.w600),
-                      ),
-                    ],
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.inbox_outlined, size: 60, color: AppColors.slate400),
+                        SizedBox(height: 10),
+                        Text(
+                          'Không có đơn kiểm định phù hợp',
+                          style: TextStyle(color: AppColors.slate600, fontSize: 15, fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               )
@@ -221,9 +247,8 @@ class _OrdersListScreenState extends ConsumerState<OrdersListScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Row 1: Inspector Header with Badge & Month Picker
+          // Row 1: Inspector Identity (Avatar, Name, Skill, Badge)
           Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(
                 padding: const EdgeInsets.all(2),
@@ -242,35 +267,12 @@ class _OrdersListScreenState extends ConsumerState<OrdersListScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            stats?.inspectorName.isNotEmpty == true
-                                ? stats!.inspectorName
-                                : auth.inspectorName,
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.slate900),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppColors.passGreen.withValues(alpha: 0.12),
-                            border: Border.all(color: AppColors.passGreen, width: 0.8),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            badgeCode,
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.passGreen,
-                            ),
-                          ),
-                        ),
-                      ],
+                    Text(
+                      stats?.inspectorName.isNotEmpty == true
+                          ? stats!.inspectorName
+                          : auth.inspectorName,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.slate900),
+                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -281,65 +283,113 @@ class _OrdersListScreenState extends ConsumerState<OrdersListScreen> {
                   ],
                 ),
               ),
-              // Month Selector Controls
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.chevron_left, size: 20),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    tooltip: 'Tháng trước',
-                    onPressed: () {
-                      int newMonth = statsState.selectedMonth - 1;
-                      int newYear = statsState.selectedYear;
-                      if (newMonth < 1) {
-                        newMonth = 12;
-                        newYear--;
-                      }
-                      ref.read(inspectorStatsProvider.notifier).changeMonthYear(newMonth, newYear);
-                    },
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.passGreen.withValues(alpha: 0.12),
+                  border: Border.all(color: AppColors.passGreen, width: 0.8),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  badgeCode,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.passGreen,
                   ),
-                  const SizedBox(width: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.slate100,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      'T${statsState.selectedMonth}/${statsState.selectedYear}',
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.slate800),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  IconButton(
-                    icon: const Icon(Icons.chevron_right, size: 20),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    tooltip: 'Tháng sau',
-                    onPressed: () {
-                      int newMonth = statsState.selectedMonth + 1;
-                      int newYear = statsState.selectedYear;
-                      if (newMonth > 12) {
-                        newMonth = 1;
-                        newYear++;
-                      }
-                      ref.read(inspectorStatsProvider.notifier).changeMonthYear(newMonth, newYear);
-                    },
-                  ),
-                  const SizedBox(width: 6),
-                  InkWell(
-                    onTap: () => setState(() => _isStatsExpanded = !_isStatsExpanded),
-                    child: Icon(
-                      _isStatsExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-                      size: 22,
-                      color: AppColors.slate500,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ],
+          ),
+          const SizedBox(height: 10),
+
+          // Row 2: Month Filter & Expand/Collapse Toggle
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppColors.slate50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.slate200),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.calendar_today_outlined, size: 14, color: AppColors.slate600),
+                const SizedBox(width: 6),
+                const Text(
+                  'Tháng:',
+                  style: TextStyle(fontSize: 12, color: AppColors.slate600, fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(width: 4),
+                InkWell(
+                  onTap: () {
+                    int newMonth = statsState.selectedMonth - 1;
+                    int newYear = statsState.selectedYear;
+                    if (newMonth < 1) {
+                      newMonth = 12;
+                      newYear--;
+                    }
+                    ref.read(inspectorStatsProvider.notifier).changeMonthYear(newMonth, newYear);
+                  },
+                  borderRadius: BorderRadius.circular(4),
+                  child: const Padding(
+                    padding: EdgeInsets.all(4),
+                    child: Icon(Icons.chevron_left, size: 18, color: AppColors.slate700),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: AppColors.slate200),
+                  ),
+                  child: Text(
+                    'T${statsState.selectedMonth}/${statsState.selectedYear}',
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.slate800),
+                  ),
+                ),
+                InkWell(
+                  onTap: () {
+                    int newMonth = statsState.selectedMonth + 1;
+                    int newYear = statsState.selectedYear;
+                    if (newMonth > 12) {
+                      newMonth = 1;
+                      newYear++;
+                    }
+                    ref.read(inspectorStatsProvider.notifier).changeMonthYear(newMonth, newYear);
+                  },
+                  borderRadius: BorderRadius.circular(4),
+                  child: const Padding(
+                    padding: EdgeInsets.all(4),
+                    child: Icon(Icons.chevron_right, size: 18, color: AppColors.slate700),
+                  ),
+                ),
+                const Spacer(),
+                InkWell(
+                  onTap: () => setState(() => _isStatsExpanded = !_isStatsExpanded),
+                  borderRadius: BorderRadius.circular(4),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _isStatsExpanded ? 'Thu gọn' : 'Chi tiết',
+                          style: const TextStyle(fontSize: 11, color: AppColors.slate600, fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(width: 2),
+                        Icon(
+                          _isStatsExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                          size: 16,
+                          color: AppColors.slate600,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
 
           if (_isStatsExpanded) ...[
@@ -405,15 +455,33 @@ class _OrdersListScreenState extends ConsumerState<OrdersListScreen> {
                         Row(
                           children: [
                             Text(
-                              '${(stats?.averageRating ?? 5.0).toStringAsFixed(1)} ★',
-                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.amber),
+                              (stats?.completedJobs ?? 0) > 0 && (stats?.averageRating ?? 0.0) > 0
+                                  ? (stats!.averageRating).toStringAsFixed(1)
+                                  : '--',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: (stats?.completedJobs ?? 0) > 0 && (stats?.averageRating ?? 0.0) > 0
+                                    ? Colors.amber
+                                    : AppColors.slate400,
+                              ),
                             ),
+                            if ((stats?.completedJobs ?? 0) > 0 && (stats?.averageRating ?? 0.0) > 0) ...[
+                              const SizedBox(width: 4),
+                              const Icon(Icons.star_rounded, size: 16, color: Colors.amber),
+                            ],
                           ],
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'Đúng giờ: ${(stats?.onTimeRate ?? 100.0).toStringAsFixed(1)}%',
-                          style: const TextStyle(fontSize: 10, color: AppColors.passGreen, fontWeight: FontWeight.w600),
+                          (stats?.completedJobs ?? 0) > 0
+                              ? 'Đúng giờ: ${(stats?.onTimeRate ?? 0.0).toStringAsFixed(1)}%'
+                              : 'Chưa có lượt đánh giá',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: (stats?.completedJobs ?? 0) > 0 ? AppColors.passGreen : AppColors.slate500,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ],
                     ),
@@ -469,23 +537,44 @@ class _OrdersListScreenState extends ConsumerState<OrdersListScreen> {
                   const SizedBox(height: 8),
                   const Divider(height: 1, color: Color(0xFFBBF7D0)),
                   const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  Wrap(
+                    spacing: 16,
+                    runSpacing: 4,
                     children: [
-                      Text(
-                        '🔧 Tiền công: ${currencyFormatter.format(stats?.laborFeeEarned ?? 0.0)}',
-                        style: const TextStyle(fontSize: 11, color: AppColors.slate700),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.handyman_outlined, size: 14, color: AppColors.slate600),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Tiền công: ${currencyFormatter.format(stats?.laborFeeEarned ?? 0.0)}',
+                            style: const TextStyle(fontSize: 11, color: AppColors.slate700),
+                          ),
+                        ],
                       ),
-                      Text(
-                        '🛵 Phụ cấp: ${currencyFormatter.format(stats?.travelAllowanceEarned ?? 0.0)}',
-                        style: const TextStyle(fontSize: 11, color: AppColors.mapBlue, fontWeight: FontWeight.w600),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.two_wheeler_outlined, size: 14, color: AppColors.mapBlue),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Phụ cấp: ${currencyFormatter.format(stats?.travelAllowanceEarned ?? 0.0)}',
+                            style: const TextStyle(fontSize: 11, color: AppColors.mapBlue, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.hourglass_empty_rounded, size: 13, color: Colors.amber),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Đang chờ quyết toán: ${currencyFormatter.format(stats?.pendingSettlementAmount ?? 0.0)}',
+                            style: const TextStyle(fontSize: 11, color: Colors.amber, fontWeight: FontWeight.w600),
+                          ),
+                        ],
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '⏳ Đang chờ quyết toán: ${currencyFormatter.format(stats?.pendingSettlementAmount ?? 0.0)}',
-                    style: const TextStyle(fontSize: 11, color: Colors.amber, fontWeight: FontWeight.w600),
                   ),
                 ],
               ),

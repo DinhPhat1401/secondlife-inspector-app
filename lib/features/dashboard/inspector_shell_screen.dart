@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../inspection/presentation/map_route_screen.dart';
 import '../inspection/presentation/orders_list_screen.dart';
@@ -49,7 +49,7 @@ class _InspectorShellScreenState extends State<InspectorShellScreen> {
             NavigationDestination(
               icon: Icon(Icons.map_outlined),
               selectedIcon: Icon(Icons.map, color: AppColors.primaryDark),
-              label: 'Bản đồ di chuyển',
+              label: 'Bản đồ',
             ),
             NavigationDestination(
               icon: Icon(Icons.qr_code_scanner_outlined),
@@ -57,9 +57,9 @@ class _InspectorShellScreenState extends State<InspectorShellScreen> {
               label: 'Quét Tem',
             ),
             NavigationDestination(
-              icon: Icon(Icons.badge_outlined),
-              selectedIcon: Icon(Icons.badge, color: AppColors.primaryDark),
-              label: 'Hồ sơ KTV',
+              icon: Icon(Icons.person_outline_rounded),
+              selectedIcon: Icon(Icons.person_rounded, color: AppColors.primaryDark),
+              label: 'Tài khoản',
             ),
           ],
         ),
