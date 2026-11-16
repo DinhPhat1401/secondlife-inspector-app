@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_endpoints.dart';
@@ -82,11 +84,24 @@ class AuthState {
 class AuthNotifier extends Notifier<AuthState> {
   final SecureStorageService _storage = SecureStorageService();
   final ApiClient _apiClient = ApiClient();
+  StreamSubscription<void>? _sessionSub;
 
   @override
   AuthState build() {
+    _sessionSub?.cancel();
+    _sessionSub = _apiClient.onSessionExpired.listen((_) {
+      _handleSessionExpired();
+    });
+    ref.onDispose(() {
+      _sessionSub?.cancel();
+    });
+
     Future.microtask(() => _loadStoredSession());
-    return const AuthState();
+    return const AuthState(isLoading: true);
+  }
+
+  void _handleSessionExpired() {
+    state = const AuthState(isAuthenticated: false, isLoading: false);
   }
 
   Future<void> checkAuth() async {
@@ -94,12 +109,47 @@ class AuthNotifier extends Notifier<AuthState> {
   }
 
   Future<void> _loadStoredSession() async {
+    state = state.copyWith(isLoading: true);
     final token = await _storage.getAccessToken();
     final user = await _storage.getUser();
-    if (token != null) {
+
+    if (token == null || token.trim().isEmpty) {
+      state = state.copyWith(isAuthenticated: false, isLoading: false);
+      return;
+    }
+
+    try {
+      final response = await _apiClient.dio.get(ApiEndpoints.me);
+      final raw = response.data;
+      final data = (raw is Map && raw.containsKey('data')) ? raw['data'] : raw;
+      if (data is Map<String, dynamic>) {
+        state = state.copyWith(
+          isAuthenticated: true,
+          isLoading: false,
+          inspectorId: data['id']?.toString() ?? state.inspectorId,
+          inspectorName: data['fullName'] ?? data['name'] ?? state.inspectorName,
+          email: data['email'] ?? state.email,
+          badgeCode: data['badgeCode']?.toString() ?? state.badgeCode,
+          stationHubId: data['stationHubId']?.toString() ?? state.stationHubId,
+          stationHubName: data['stationHubName']?.toString() ?? state.stationHubName,
+          certificationTitle: data['certificationTitle']?.toString() ?? state.certificationTitle,
+          phone: data['phone']?.toString() ?? state.phone,
+          avatarUrl: data['avatarUrl']?.toString() ?? state.avatarUrl,
+        );
+        await _storage.saveUser(Map<String, dynamic>.from(data));
+        return;
+      }
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        await _storage.clearAuth();
+        state = const AuthState(isAuthenticated: false, isLoading: false);
+        return;
+      }
+      // If offline/network error, allow cached user if present
       if (user != null) {
         state = state.copyWith(
           isAuthenticated: true,
+          isLoading: false,
           email: user['email'] ?? state.email,
           inspectorId: user['id']?.toString() ?? state.inspectorId,
           inspectorName: user['fullName'] ?? user['name'] ?? state.inspectorName,
@@ -110,11 +160,23 @@ class AuthNotifier extends Notifier<AuthState> {
           phone: user['phone']?.toString(),
           avatarUrl: user['avatarUrl']?.toString(),
         );
-      } else {
-        state = state.copyWith(isAuthenticated: true);
+        return;
       }
-      await fetchProfile();
+    } catch (_) {
+      if (user != null) {
+        state = state.copyWith(
+          isAuthenticated: true,
+          isLoading: false,
+          email: user['email'] ?? state.email,
+          inspectorId: user['id']?.toString() ?? state.inspectorId,
+          inspectorName: user['fullName'] ?? user['name'] ?? state.inspectorName,
+        );
+        return;
+      }
     }
+
+    await _storage.clearAuth();
+    state = const AuthState(isAuthenticated: false, isLoading: false);
   }
 
   Future<void> fetchProfile() async {
@@ -135,6 +197,10 @@ class AuthNotifier extends Notifier<AuthState> {
           avatarUrl: data['avatarUrl']?.toString() ?? state.avatarUrl,
         );
         await _storage.saveUser(Map<String, dynamic>.from(data));
+      }
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        await logout();
       }
     } catch (_) {}
   }
@@ -218,7 +284,7 @@ class AuthNotifier extends Notifier<AuthState> {
       }
     } catch (_) {}
     await _storage.clearAuth();
-    state = const AuthState(isAuthenticated: false);
+    state = const AuthState(isAuthenticated: false, isLoading: false);
   }
 }
 

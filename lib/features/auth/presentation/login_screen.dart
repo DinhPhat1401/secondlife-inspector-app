@@ -311,9 +311,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           children: [
                             const Icon(Icons.dns_outlined, size: 14, color: AppColors.slate600),
                             const SizedBox(width: 6),
-                            Text(
-                              'Máy chủ: ${AppConfig.baseUrl}',
-                              style: const TextStyle(fontSize: 11, color: AppColors.slate600, fontWeight: FontWeight.w500),
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 210),
+                              child: Text(
+                                'Máy chủ: ${AppConfig.baseUrl}',
+                                style: const TextStyle(fontSize: 11, color: AppColors.slate600, fontWeight: FontWeight.w500),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                             const SizedBox(width: 4),
                             const Icon(Icons.edit_outlined, size: 12, color: AppColors.slate400),

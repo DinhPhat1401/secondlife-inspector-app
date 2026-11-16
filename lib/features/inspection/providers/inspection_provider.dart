@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../core/network/api_client.dart';
@@ -33,20 +34,41 @@ class InspectionState {
   List<InspectionOrder> get filteredOrders {
     var list = orders;
     if (activeFilter == 'SCHEDULED') {
-      list = list.where((o) => o.status == 'SCHEDULED' || o.status == 'CONFIRMED_PENDING_DISPATCH').toList();
+      list = list
+          .where(
+            (o) =>
+                o.status == 'SCHEDULED' ||
+                o.status == 'CONFIRMED_PENDING_DISPATCH' ||
+                o.status == 'DISPATCHED' ||
+                o.status == 'RECEIVED_AT_CENTER' ||
+                o.status == 'AWAITING_INSPECTION',
+          )
+          .toList();
     } else if (activeFilter == 'INSPECTING') {
       list = list.where((o) => o.status == 'INSPECTING').toList();
     } else if (activeFilter == 'COMPLETED') {
-      list = list.where((o) => o.status == 'PASSED' || o.status == 'FAILED' || o.status == 'COMPLETED').toList();
+      list = list
+          .where(
+            (o) =>
+                o.status == 'PASSED' ||
+                o.status == 'FAILED' ||
+                o.status == 'COMPLETED',
+          )
+          .toList();
     }
 
     if (searchQuery.isNotEmpty) {
       final query = searchQuery.toLowerCase();
-      list = list.where((o) =>
-          o.postTitle.toLowerCase().contains(query) ||
-          o.sellerName.toLowerCase().contains(query) ||
-          o.id.toLowerCase().contains(query) ||
-          (o.sellerAddress != null && o.sellerAddress!.toLowerCase().contains(query))).toList();
+      list = list
+          .where(
+            (o) =>
+                o.postTitle.toLowerCase().contains(query) ||
+                o.sellerName.toLowerCase().contains(query) ||
+                o.id.toLowerCase().contains(query) ||
+                (o.sellerAddress != null &&
+                    o.sellerAddress!.toLowerCase().contains(query)),
+          )
+          .toList();
     }
     return list;
   }
@@ -93,6 +115,58 @@ class InspectionNotifier extends Notifier<InspectionState> {
     state = state.copyWith(searchQuery: query);
   }
 
+  String _extractErrorMessage(Object error, String fallback) {
+    if (error is DioException) {
+      final data = error.response?.data;
+      if (data is Map<String, dynamic>) {
+        final msg = data['message'] ?? data['error'] ?? data['detail'];
+        if (msg != null && msg.toString().trim().isNotEmpty) {
+          return msg.toString().trim();
+        }
+      } else if (data is String && data.trim().isNotEmpty) {
+        return data.trim();
+      }
+      if (error.message != null && error.message!.trim().isNotEmpty) {
+        return '$fallback: ${error.message}';
+      }
+    }
+    return '$fallback: $error';
+  }
+
+  InspectionOrder? _parseOrderDto(dynamic rawResponseData) {
+    if (rawResponseData is Map<String, dynamic>) {
+      final payload = rawResponseData['data'] ?? rawResponseData;
+      if (payload is Map<String, dynamic> && payload['id'] != null) {
+        return InspectionOrder.fromJson(payload);
+      }
+    }
+    return null;
+  }
+
+  void _syncOrderInState(
+    InspectionOrder updatedOrder, {
+    bool? isSubmitting,
+    String? errorMessage,
+  }) {
+    final exists = state.orders.any((o) => o.id == updatedOrder.id);
+    final updatedOrders = exists
+        ? state.orders
+              .map((o) => o.id == updatedOrder.id ? updatedOrder : o)
+              .toList()
+        : [updatedOrder, ...state.orders];
+
+    final shouldUpdateSelected =
+        state.selectedOrder == null ||
+        state.selectedOrder?.id == updatedOrder.id;
+
+    state = state.copyWith(
+      orders: updatedOrders,
+      selectedOrder: shouldUpdateSelected ? updatedOrder : state.selectedOrder,
+      isSubmitting: isSubmitting ?? state.isSubmitting,
+      errorMessage: errorMessage,
+    );
+  }
+
   Future<void> fetchOrders() async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
@@ -114,9 +188,24 @@ class InspectionNotifier extends Notifier<InspectionState> {
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        errorMessage: 'Không thể tải danh sách đơn kiểm định: $e',
+        errorMessage: _extractErrorMessage(
+          e,
+          'Không thể tải danh sách đơn kiểm định',
+        ),
       );
     }
+  }
+
+  Future<InspectionOrder?> fetchOrderDetail(String orderId) async {
+    try {
+      final response = await _api.dio.get(ApiEndpoints.orderDetails(orderId));
+      final order = _parseOrderDto(response.data);
+      if (order != null) {
+        _syncOrderInState(order, errorMessage: state.errorMessage);
+        return order;
+      }
+    } catch (_) {}
+    return null;
   }
 
   Future<void> selectOrder(InspectionOrder order) async {
@@ -133,6 +222,8 @@ class InspectionNotifier extends Notifier<InspectionState> {
         final payload = data['data'] ?? data;
         if (payload is Map<String, dynamic> && payload['items'] is List) {
           itemsList = payload['items'] as List;
+        } else if (payload is List) {
+          itemsList = payload;
         }
       } else if (data is List) {
         itemsList = data;
@@ -150,7 +241,12 @@ class InspectionNotifier extends Notifier<InspectionState> {
     state = state.copyWith(currentChecklist: const []);
   }
 
-  void updateChecklistItem(String itemId, bool passed, String note, String? photoProofUrl) {
+  void updateChecklistItem(
+    String itemId,
+    bool passed,
+    String note,
+    String? photoProofUrl,
+  ) {
     final updated = state.currentChecklist.map((item) {
       if (item.id == itemId) {
         return item.copyWith(
@@ -164,17 +260,33 @@ class InspectionNotifier extends Notifier<InspectionState> {
     state = state.copyWith(currentChecklist: updated);
   }
 
-  Future<bool> scheduleAppointment(String orderId, DateTime time, String note) async {
-    state = state.copyWith(isSubmitting: true);
+  Future<bool> scheduleAppointment(
+    String orderId,
+    DateTime time,
+    String note,
+  ) async {
+    state = state.copyWith(isSubmitting: true, errorMessage: null);
     try {
-      await _api.dio.post(
+      final response = await _api.dio.post(
         ApiEndpoints.scheduleAppointment(orderId),
         data: {
+          'scheduledAt': time.toIso8601String(),
           'appointmentTime': time.toIso8601String(),
           'note': note,
         },
       );
-    } catch (_) {}
+      final parsed = _parseOrderDto(response.data);
+      if (parsed != null) {
+        _syncOrderInState(parsed, isSubmitting: false, errorMessage: null);
+        return true;
+      }
+    } catch (e) {
+      state = state.copyWith(
+        isSubmitting: false,
+        errorMessage: _extractErrorMessage(e, 'Không thể xếp lịch hẹn'),
+      );
+      return false;
+    }
 
     final updatedOrders = state.orders.map((o) {
       if (o.id == orderId) {
@@ -199,25 +311,195 @@ class InspectionNotifier extends Notifier<InspectionState> {
     return true;
   }
 
-  Future<bool> startInspection(String orderId) async {
-    state = state.copyWith(isSubmitting: true);
+  Future<InspectionOrder?> startInspection(
+    String orderId, {
+    String? checkInCode,
+    String? barcodeInput,
+  }) async {
+    state = state.copyWith(isSubmitting: true, errorMessage: null);
+    final hasCheckInCode = checkInCode != null && checkInCode.trim().isNotEmpty;
+    final hasBarcode = barcodeInput != null && barcodeInput.trim().isNotEmpty;
+    final requestData = <String, dynamic>{
+      if (hasCheckInCode) 'checkInCode': checkInCode.trim(),
+      if (hasBarcode) 'barcodeInput': barcodeInput.trim(),
+    };
+
     try {
-      await _api.dio.post(ApiEndpoints.startInspection(orderId));
-    } catch (_) {}
+      final response = await _api.dio.post(
+        ApiEndpoints.startInspection(orderId),
+        data: requestData,
+      );
 
-    final updatedOrders = state.orders.map((o) {
-      if (o.id == orderId) {
-        return o.copyWith(status: 'INSPECTING');
+      final parsed = _parseOrderDto(response.data);
+      final fallbackCheckedInAt = hasCheckInCode ? DateTime.now() : null;
+
+      if (parsed != null) {
+        final merged = parsed.copyWith(
+          status: 'INSPECTING',
+          homeCheckedInAt: parsed.homeCheckedInAt ?? fallbackCheckedInAt,
+        );
+        _syncOrderInState(merged, isSubmitting: false, errorMessage: null);
+        return merged;
       }
-      return o;
-    }).toList();
 
-    state = state.copyWith(
-      orders: updatedOrders,
-      selectedOrder: state.selectedOrder?.copyWith(status: 'INSPECTING'),
-      isSubmitting: false,
-    );
-    return true;
+      final existing =
+          state.orders.where((o) => o.id == orderId).firstOrNull ??
+          state.selectedOrder;
+      if (existing != null) {
+        final updated = existing.copyWith(
+          status: 'INSPECTING',
+          homeCheckedInAt: existing.homeCheckedInAt ?? fallbackCheckedInAt,
+        );
+        _syncOrderInState(updated, isSubmitting: false, errorMessage: null);
+        return updated;
+      }
+
+      state = state.copyWith(isSubmitting: false);
+      return null;
+    } catch (e) {
+      final errMsg = _extractErrorMessage(
+        e,
+        'Không thể bắt đầu phiên kiểm định',
+      );
+      await fetchOrderDetail(orderId);
+      state = state.copyWith(isSubmitting: false, errorMessage: errMsg);
+      return null;
+    }
+  }
+
+  Future<InspectionOrder?> acceptCounterAppointment(String orderId) async {
+    state = state.copyWith(isSubmitting: true, errorMessage: null);
+    try {
+      final response = await _api.dio.post(
+        '/api/v1/inspector/orders/$orderId/appointment/accept-counter',
+      );
+      final parsed = _parseOrderDto(response.data);
+      if (parsed != null) {
+        _syncOrderInState(parsed, isSubmitting: false, errorMessage: null);
+        return parsed;
+      }
+      state = state.copyWith(isSubmitting: false);
+      return null;
+    } catch (e) {
+      final errMsg = _extractErrorMessage(e, 'Không thể chấp nhận lịch hẹn');
+      state = state.copyWith(isSubmitting: false, errorMessage: errMsg);
+      return null;
+    }
+  }
+
+  String? _extractUploadedUrl(dynamic data) {
+    if (data is String && data.trim().isNotEmpty) {
+      return data.trim();
+    }
+    if (data is Map<String, dynamic>) {
+      final direct = data['url'] ?? data['secure_url'] ?? data['fileUrl'];
+      if (direct is String && direct.trim().isNotEmpty) {
+        return direct.trim();
+      }
+      final nested = data['data'];
+      if (nested is String && nested.trim().isNotEmpty) {
+        return nested.trim();
+      }
+      if (nested is Map<String, dynamic>) {
+        final nestedUrl =
+            nested['url'] ?? nested['secure_url'] ?? nested['fileUrl'];
+        if (nestedUrl is String && nestedUrl.trim().isNotEmpty) {
+          return nestedUrl.trim();
+        }
+      }
+    }
+    return null;
+  }
+
+  Future<String?> uploadEvidencePhoto(String filePath) async {
+    try {
+      final fileName = filePath.split(RegExp(r'[/\\]')).last;
+      final formData = FormData.fromMap({
+        'file': await MultipartFile.fromFile(filePath, filename: fileName),
+        'folder': ApiEndpoints.inspectionProofsFolder,
+      });
+
+      final response = await _api.dio.post(
+        ApiEndpoints.mediaUpload,
+        data: formData,
+        options: Options(contentType: 'multipart/form-data'),
+      );
+
+      final url = _extractUploadedUrl(response.data);
+      if (url != null) {
+        return url;
+      }
+      state = state.copyWith(
+        errorMessage: 'Máy chủ không trả về đường dẫn ảnh hợp lệ.',
+      );
+      return null;
+    } catch (e) {
+      state = state.copyWith(
+        errorMessage: _extractErrorMessage(
+          e,
+          'Không thể tải ảnh minh chứng lên hệ thống',
+        ),
+      );
+      return null;
+    }
+  }
+
+  Future<List<String>> uploadMultipleEvidencePhotos(
+    List<String> filePaths,
+  ) async {
+    if (filePaths.isEmpty) return const [];
+
+    try {
+      final files = <MultipartFile>[];
+      for (final path in filePaths) {
+        final fileName = path.split(RegExp(r'[/\\]')).last;
+        files.add(await MultipartFile.fromFile(path, filename: fileName));
+      }
+      final formData = FormData.fromMap({
+        'files': files,
+        'folder': ApiEndpoints.inspectionProofsFolder,
+      });
+
+      final response = await _api.dio.post(
+        ApiEndpoints.mediaUploadMultiple,
+        data: formData,
+        options: Options(contentType: 'multipart/form-data'),
+      );
+
+      final data = response.data;
+      List<dynamic>? rawUrls;
+      if (data is List) {
+        rawUrls = data;
+      } else if (data is Map<String, dynamic>) {
+        final payload = data['urls'] ?? data['data'] ?? data['files'];
+        if (payload is List) {
+          rawUrls = payload;
+        } else if (payload is Map<String, dynamic> && payload['urls'] is List) {
+          rawUrls = payload['urls'] as List;
+        }
+      }
+
+      if (rawUrls != null) {
+        final urls = rawUrls
+            .map((item) => _extractUploadedUrl(item) ?? item.toString().trim())
+            .where((u) => u.isNotEmpty)
+            .toList();
+        if (urls.isNotEmpty) {
+          return urls;
+        }
+      }
+    } catch (_) {
+      // Fallback to sequential single uploads below
+    }
+
+    final uploadedUrls = <String>[];
+    for (final path in filePaths) {
+      final url = await uploadEvidencePhoto(path);
+      if (url != null && url.isNotEmpty) {
+        uploadedUrls.add(url);
+      }
+    }
+    return uploadedUrls;
   }
 
   Future<bool> submitInspectionResult({
@@ -225,127 +507,193 @@ class InspectionNotifier extends Notifier<InspectionState> {
     required String status,
     required int conditionScore,
     required String conditionGrade,
-    required String tamperSealId,
+    String? tamperSealId,
     String? barcode,
     String? videoProofUrl,
+    String? unboxingVideoUrl,
+    List<String>? evidencePhotoUrls,
     String? note,
+    bool isAtCenter = false,
   }) async {
-    state = state.copyWith(isSubmitting: true);
-    final checklistDto = state.currentChecklist.map((e) => e.toResultJson()).toList();
+    state = state.copyWith(isSubmitting: true, errorMessage: null);
+    final checklistDto = state.currentChecklist
+        .map((e) => e.toResultJson())
+        .toList();
 
-    final payload = {
+    final cleanVideoUrl =
+        (videoProofUrl != null && videoProofUrl.trim().isNotEmpty)
+        ? videoProofUrl.trim()
+        : null;
+    final cleanUnboxingUrl =
+        (unboxingVideoUrl != null && unboxingVideoUrl.trim().isNotEmpty)
+        ? unboxingVideoUrl.trim()
+        : null;
+    final cleanNote = (note != null && note.trim().isNotEmpty)
+        ? note.trim()
+        : null;
+    final cleanSealId = (tamperSealId != null && tamperSealId.trim().isNotEmpty)
+        ? tamperSealId.trim()
+        : null;
+    final cleanBarcode = (barcode != null && barcode.trim().isNotEmpty)
+        ? barcode.trim()
+        : cleanSealId;
+    final cleanPhotos = (evidencePhotoUrls ?? const <String>[])
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+
+    final Map<String, dynamic> payload = {
       'status': status,
       'conditionScore': conditionScore,
       'conditionGrade': conditionGrade,
-      'tamperSealId': tamperSealId,
-      'barcode': barcode ?? tamperSealId,
-      'videoProofUrl': videoProofUrl ?? 'https://cloudinary.com/secondlife/inspection/video_proof_$orderId.mp4',
-      'note': note ?? 'KTV đã hoàn tất kiểm tra quy chuẩn.',
+      'note': ?cleanNote,
       'checklistResults': checklistDto,
+      if (cleanPhotos.isNotEmpty || isAtCenter)
+        'evidencePhotoUrls': cleanPhotos,
+      'videoProofUrl': ?cleanVideoUrl,
+      'unboxingVideoUrl': ?cleanUnboxingUrl,
     };
 
+    if (!isAtCenter) {
+      if (cleanSealId != null) {
+        payload['tamperSealId'] = cleanSealId;
+      }
+      if (cleanBarcode != null) {
+        payload['barcode'] = cleanBarcode;
+      }
+    }
+
     try {
-      await _api.dio.post(
-        ApiEndpoints.submitReport(orderId),
+      final response = await _api.dio.post(
+        ApiEndpoints.submitResult(orderId),
         data: payload,
       );
-    } catch (_) {}
 
-    final updatedOrders = state.orders.map((o) {
-      if (o.id == orderId) {
-        return o.copyWith(
-          status: status,
-          conditionScore: conditionScore,
-          conditionGrade: conditionGrade,
-          tamperSealId: tamperSealId,
-          barcode: barcode ?? tamperSealId,
-          videoProofUrl: videoProofUrl,
-          note: note,
+      final parsed = _parseOrderDto(response.data);
+      if (parsed != null) {
+        final merged = parsed.copyWith(
+          status: parsed.status.isNotEmpty ? parsed.status : status,
+          conditionScore: parsed.conditionScore ?? conditionScore,
+          conditionGrade: parsed.conditionGrade ?? conditionGrade,
+          tamperSealId: isAtCenter
+              ? parsed.tamperSealId
+              : (parsed.tamperSealId ?? cleanSealId),
+          barcode: isAtCenter
+              ? parsed.barcode
+              : (parsed.barcode ?? cleanBarcode),
+          videoProofUrl: parsed.videoProofUrl ?? cleanVideoUrl,
+          unboxingVideoUrl: parsed.unboxingVideoUrl ?? cleanUnboxingUrl,
+          evidencePhotoUrls: parsed.evidencePhotoUrls.isNotEmpty
+              ? parsed.evidencePhotoUrls
+              : cleanPhotos,
+          note: parsed.note ?? cleanNote,
         );
+        _syncOrderInState(merged, isSubmitting: false, errorMessage: null);
+      } else {
+        final existing =
+            state.orders.where((o) => o.id == orderId).firstOrNull ??
+            state.selectedOrder;
+        if (existing != null) {
+          final updated = existing.copyWith(
+            status: status,
+            conditionScore: conditionScore,
+            conditionGrade: conditionGrade,
+            tamperSealId: isAtCenter ? existing.tamperSealId : cleanSealId,
+            barcode: isAtCenter ? existing.barcode : cleanBarcode,
+            videoProofUrl: cleanVideoUrl,
+            unboxingVideoUrl: cleanUnboxingUrl,
+            evidencePhotoUrls: cleanPhotos.isNotEmpty
+                ? cleanPhotos
+                : existing.evidencePhotoUrls,
+            note: cleanNote,
+          );
+          _syncOrderInState(updated, isSubmitting: false, errorMessage: null);
+        } else {
+          state = state.copyWith(isSubmitting: false);
+        }
       }
-      return o;
-    }).toList();
 
-    state = state.copyWith(
-      orders: updatedOrders,
-      selectedOrder: state.selectedOrder?.copyWith(
-        status: status,
-        conditionScore: conditionScore,
-        conditionGrade: conditionGrade,
-        tamperSealId: tamperSealId,
-        barcode: barcode ?? tamperSealId,
-        videoProofUrl: videoProofUrl,
-        note: note,
-      ),
-      isSubmitting: false,
-    );
+      try {
+        ref.read(inspectorStatsProvider.notifier).refreshAll();
+      } catch (_) {}
 
-    try {
-      ref.read(inspectorStatsProvider.notifier).refreshAll();
-    } catch (_) {}
+      return true;
+    } catch (e) {
+      final errMsg = _extractErrorMessage(
+        e,
+        'Không thể nộp biên bản kiểm định',
+      );
+      final latest = await fetchOrderDetail(orderId);
+      if (latest != null && (latest.status == status || latest.isCompleted)) {
+        state = state.copyWith(isSubmitting: false, errorMessage: null);
+        try {
+          ref.read(inspectorStatsProvider.notifier).refreshAll();
+        } catch (_) {}
+        return true;
+      }
 
-    return true;
+      state = state.copyWith(isSubmitting: false, errorMessage: errMsg);
+      return false;
+    }
   }
 
   Future<InspectionSealVerification?> verifySeal(String tamperSealId) async {
-    state = state.copyWith(isLoading: true);
+    state = state.copyWith(isLoading: true, errorMessage: null);
     try {
-      final res = await _api.dio.get(ApiEndpoints.sealVerification(tamperSealId));
+      final res = await _api.dio.get(
+        ApiEndpoints.sealVerification(tamperSealId),
+      );
       if (res.data != null) {
         final data = res.data['data'] ?? res.data;
-        final cert = InspectionSealVerification.fromJson(data as Map<String, dynamic>);
+        final cert = InspectionSealVerification.fromJson(
+          data as Map<String, dynamic>,
+        );
         state = state.copyWith(verifiedSeal: cert, isLoading: false);
         return cert;
       }
-    } catch (_) {}
-
-    final mockCert = InspectionSealVerification(
-      tamperSealId: tamperSealId.toUpperCase(),
-      productTitle: 'Máy Lạnh Inverter Daikin 1.5 HP Tiết Kiệm Điện (FTKB35WAVMV)',
-      productBrand: 'Daikin Japan',
-      productModel: 'FTKB35WAVMV',
-      conditionScore: 92,
-      conditionGrade: 'A - Rất Tốt',
-      inspectionStatus: 'PASSED',
-      currentSealStatus: 'INTACT',
-      isOfficialSecondLifeSeal: true,
-      inspectorName: 'KTV. Trần Minh Long',
-      inspectedAt: DateTime.now().subtract(const Duration(hours: 3)),
-      scanHistory: [
-        InspectionSealLog(
-          id: 'log-1',
-          tamperSealId: tamperSealId,
-          scannedByName: 'KTV. Trần Minh Long',
-          scanStage: 'INITIAL_SEAL',
-          sealCondition: 'INTACT',
-          locationText: '15 Lê Văn Việt, TP. Thủ Đức, TP.HCM',
-          note: 'Dán tem niêm phong sau khi đạt toàn bộ 7 tiêu chí kiểm định',
-          scannedAt: DateTime.now().subtract(const Duration(hours: 3)),
+    } catch (e) {
+      state = state.copyWith(
+        verifiedSeal: null,
+        isLoading: false,
+        errorMessage: _extractErrorMessage(
+          e,
+          'Không tìm thấy hoặc không thể xác thực mã tem',
         ),
-      ],
-    );
+      );
+      return null;
+    }
 
-    state = state.copyWith(verifiedSeal: mockCert, isLoading: false);
-    return mockCert;
+    state = state.copyWith(verifiedSeal: null, isLoading: false);
+    return null;
   }
 
   /// KTV yêu cầu hệ thống Backend sinh mã tem niêm phong chuẩn có checksum SHA-256
   Future<String?> generateSeal(String orderId) async {
+    final targetOrder = state.selectedOrder?.id == orderId
+        ? state.selectedOrder
+        : state.orders.where((o) => o.id == orderId).firstOrNull;
+    if (state.selectedOrder?.isAtCenter == true ||
+        targetOrder?.isAtCenter == true) {
+      return null;
+    }
+
     try {
       final res = await _api.dio.post(ApiEndpoints.generateSeal(orderId));
       if (res.data != null) {
-        final data = res.data['data'] ?? res.data;
+        final data = res.data['data'] ?? res.data['message'] ?? res.data;
         if (data is String && data.isNotEmpty) {
           return data;
         }
       }
-    } catch (_) {}
-
-    // Fallback mã tem chuẩn định dạng khi test offline hoặc mock
-    final now = DateTime.now();
-    final yyyymmdd = '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
-    final randomHex = (100000 + (DateTime.now().millisecondsSinceEpoch % 899999)).toRadixString(16).toUpperCase();
-    return 'SL-SEAL-$yyyymmdd-$randomHex-9F';
+    } catch (e) {
+      state = state.copyWith(
+        errorMessage: _extractErrorMessage(
+          e,
+          'Không thể sinh mã tem niêm phong từ máy chủ',
+        ),
+      );
+    }
+    return null;
   }
 
   Future<bool> recordSealScan({
@@ -367,7 +715,8 @@ class InspectionNotifier extends Notifier<InspectionState> {
         if (permission == LocationPermission.denied) {
           permission = await Geolocator.requestPermission();
         }
-        if (permission == LocationPermission.always || permission == LocationPermission.whileInUse) {
+        if (permission == LocationPermission.always ||
+            permission == LocationPermission.whileInUse) {
           final position = await Geolocator.getCurrentPosition(
             locationSettings: const LocationSettings(
               accuracy: LocationAccuracy.medium,
@@ -387,7 +736,11 @@ class InspectionNotifier extends Notifier<InspectionState> {
         'tamperSealId': tamperSealId,
         'scanStage': scanStage,
         'sealCondition': sealCondition,
-        'locationText': locationText ?? (currentLat != null ? 'Tọa độ GPS ($currentLat, $currentLng)' : 'Vị trí hiện tại KTV'),
+        'locationText':
+            locationText ??
+            (currentLat != null
+                ? 'Tọa độ GPS ($currentLat, $currentLng)'
+                : 'Vị trí hiện tại KTV'),
         'note': note ?? 'Ghi nhận quét tem niêm phong',
         if (currentLat != null) ...{
           'latitude': currentLat,
@@ -395,20 +748,31 @@ class InspectionNotifier extends Notifier<InspectionState> {
         },
       };
 
-      await _api.dio.post(
-        ApiEndpoints.recordSealScan,
-        data: payload,
+      await _api.dio.post(ApiEndpoints.recordSealScan, data: payload);
+    } catch (e) {
+      state = state.copyWith(
+        errorMessage: _extractErrorMessage(
+          e,
+          'Không thể ghi nhận lần quét tem',
+        ),
       );
-    } catch (_) {}
+      return false;
+    }
 
-    if (state.verifiedSeal != null && state.verifiedSeal!.tamperSealId.toLowerCase() == tamperSealId.toLowerCase()) {
+    if (state.verifiedSeal != null &&
+        state.verifiedSeal!.tamperSealId.toLowerCase() ==
+            tamperSealId.toLowerCase()) {
       final newLog = InspectionSealLog(
         id: 'log-${DateTime.now().millisecondsSinceEpoch}',
         tamperSealId: tamperSealId,
         scannedByName: 'KTV. Trần Minh Long',
         scanStage: scanStage,
         sealCondition: sealCondition,
-        locationText: locationText ?? (currentLat != null ? 'Tọa độ GPS ($currentLat, $currentLng)' : 'Vị trí hiện tại KTV'),
+        locationText:
+            locationText ??
+            (currentLat != null
+                ? 'Tọa độ GPS ($currentLat, $currentLng)'
+                : 'Vị trí hiện tại KTV'),
         latitude: currentLat,
         longitude: currentLng,
         note: note,
@@ -442,6 +806,7 @@ class InspectionNotifier extends Notifier<InspectionState> {
   }
 }
 
-final inspectionProvider = NotifierProvider<InspectionNotifier, InspectionState>(() {
-  return InspectionNotifier();
-});
+final inspectionProvider =
+    NotifierProvider<InspectionNotifier, InspectionState>(() {
+      return InspectionNotifier();
+    });

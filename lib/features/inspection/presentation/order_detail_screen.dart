@@ -162,17 +162,73 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
   }
 
   void _startInspection() async {
-    final success = await ref.read(inspectionProvider.notifier).startInspection(_currentOrder.id);
-    if (success && mounted) {
-      setState(() {
-        _currentOrder = _currentOrder.copyWith(status: 'INSPECTING');
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Đã bắt đầu quy trình kiểm định! Trạng thái: INSPECTING'),
-          backgroundColor: AppColors.primary,
+    if (_currentOrder.isAtHome) {
+      final codeCtrl = TextEditingController();
+      final enteredCode = await showDialog<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Nhập Mã Check-In Tại Nhà', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Yêu cầu người bán cung cấp mã check-in trên ứng dụng Người bán để bắt đầu kiểm định tại nhà:',
+                style: TextStyle(fontSize: 13, color: AppColors.slate600),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: codeCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Mã check-in',
+                  hintText: 'Nhập mã check-in từ người bán...',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+              onPressed: () => Navigator.pop(ctx, codeCtrl.text.trim()),
+              child: const Text('Xác nhận', style: TextStyle(color: Colors.white)),
+            ),
+          ],
         ),
       );
+
+      if (enteredCode == null || enteredCode.isEmpty) return;
+
+      final updated = await ref.read(inspectionProvider.notifier).startInspection(
+            _currentOrder.id,
+            checkInCode: enteredCode,
+          );
+      if (updated != null && mounted) {
+        setState(() {
+          _currentOrder = updated;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Check-in tại nhà thành công! Bắt đầu kiểm định.'),
+            backgroundColor: AppColors.primary,
+          ),
+        );
+      }
+    } else {
+      final updated = await ref.read(inspectionProvider.notifier).startInspection(_currentOrder.id);
+      if (updated != null && mounted) {
+        setState(() {
+          _currentOrder = updated;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Đã bắt đầu kiểm định tại trung tâm! Trạng thái: INSPECTING'),
+            backgroundColor: AppColors.primary,
+          ),
+        );
+      }
     }
   }
 
@@ -183,7 +239,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Đơn kiểm định #${_currentOrder.id}'),
+        title: Text('Đơn kiểm định #${_currentOrder.id.length > 8 ? _currentOrder.id.substring(0, 8).toUpperCase() : _currentOrder.id}'),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -238,20 +294,25 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                       children: [
                         ClipRRect(
                           borderRadius: BorderRadius.circular(8),
-                          child: Image.network(
-                            _currentOrder.postImageUrls.isNotEmpty
-                                ? _currentOrder.postImageUrls.first
-                                : 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=300',
-                            width: 80,
-                            height: 80,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, _, _) => Container(
-                              width: 80,
-                              height: 80,
-                              color: AppColors.slate100,
-                              child: const Icon(Icons.devices, color: AppColors.slate400),
-                            ),
-                          ),
+                          child: _currentOrder.postImageUrls.isNotEmpty && _currentOrder.postImageUrls.first.trim().isNotEmpty
+                              ? Image.network(
+                                  _currentOrder.postImageUrls.first,
+                                  width: 80,
+                                  height: 80,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, _, _) => Container(
+                                    width: 80,
+                                    height: 80,
+                                    color: AppColors.slate100,
+                                    child: const Icon(Icons.devices, color: AppColors.slate400),
+                                  ),
+                                )
+                              : Container(
+                                  width: 80,
+                                  height: 80,
+                                  color: AppColors.slate100,
+                                  child: const Icon(Icons.devices, color: AppColors.slate400),
+                                ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -421,6 +482,69 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
               ),
             ),
             const SizedBox(height: 24),
+
+            if (_currentOrder.counterScheduledAt != null) ...[
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.amberLight,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.amber),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.event_repeat_rounded, color: AppColors.secondary, size: 20),
+                        SizedBox(width: 8),
+                        Text(
+                          'Khách Hàng Đã Đề Xuất Giờ Khác',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.slate900),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Khung giờ mới: ${dateFormatter.format(_currentOrder.counterScheduledAt!)}${_currentOrder.counterShift != null ? " (${_currentOrder.counterShift})" : ""}',
+                      style: const TextStyle(fontSize: 12, color: AppColors.slate800, fontWeight: FontWeight.w600),
+                    ),
+                    if (_currentOrder.counterNote != null && _currentOrder.counterNote!.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Ghi chú: "${_currentOrder.counterNote}"',
+                        style: const TextStyle(fontSize: 11, color: AppColors.slate600, fontStyle: FontStyle.italic),
+                      ),
+                    ],
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                        ),
+                        icon: const Icon(Icons.check_rounded, size: 16),
+                        label: const Text('Tiếp Nhận Khung Giờ Mới Này', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        onPressed: () async {
+                          final messenger = ScaffoldMessenger.of(context);
+                          final updated = await ref.read(inspectionProvider.notifier).acceptCounterAppointment(_currentOrder.id);
+                          if (!mounted) return;
+                          if (updated != null) {
+                            setState(() => _currentOrder = updated);
+                            messenger.showSnackBar(
+                              const SnackBar(content: Text('Đã chấp nhận khung giờ mới thành công!'), backgroundColor: AppColors.passGreen),
+                            );
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
 
             if (_currentOrder.status == 'SCHEDULED' || _currentOrder.status == 'CONFIRMED_PENDING_DISPATCH')
               ElevatedButton.icon(

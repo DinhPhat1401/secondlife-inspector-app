@@ -20,17 +20,19 @@ class _SealVerificationScreenState extends ConsumerState<SealVerificationScreen>
   @override
   void initState() {
     super.initState();
-    _sealId = widget.tamperSealId ?? 'SL-SEAL-8924-A1';
-    Future.microtask(() {
-      ref.read(inspectionProvider.notifier).verifySeal(_sealId);
-    });
+    _sealId = widget.tamperSealId ?? '';
+    if (_sealId.isNotEmpty) {
+      Future.microtask(() {
+        ref.read(inspectionProvider.notifier).verifySeal(_sealId);
+      });
+    }
   }
 
   void _showRecordScanModal() {
     String selectedStage = 'CARRIER_HANDOVER';
     String selectedCondition = 'INTACT';
-    final locationController = TextEditingController(text: 'Khu Công Nghệ Cao, TP. Thủ Đức, TP.HCM');
-    final noteController = TextEditingController(text: 'Tem còn nguyên lớp keo chống bóc vỡ, không có dấu hiệu nạy mở.');
+    final locationController = TextEditingController();
+    final noteController = TextEditingController();
     double? detectedLat;
     double? detectedLng;
 
@@ -284,8 +286,12 @@ class _SealVerificationScreenState extends ConsumerState<SealVerificationScreen>
                                   const Icon(Icons.engineering_outlined, size: 20, color: AppColors.primary),
                                   const SizedBox(width: 8),
                                   const Text('KTV chịu trách nhiệm: ', style: TextStyle(fontSize: 13, color: AppColors.slate600)),
-                                  Text(cert.inspectorName ?? 'KTV SecondLife',
-                                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                                  Text(
+                                    cert.inspectorName != null && cert.inspectorName!.isNotEmpty
+                                        ? cert.inspectorName!
+                                        : 'Chưa cập nhật KTV',
+                                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                                  ),
                                 ],
                               ),
                               const SizedBox(height: 8),

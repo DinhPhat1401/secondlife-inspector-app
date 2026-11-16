@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -74,7 +74,7 @@ class _MapRouteScreenState extends ConsumerState<MapRouteScreen> {
                       child: const Icon(Icons.two_wheeler_rounded, color: Colors.white, size: 26),
                     ),
                   ),
-                  ...orders.map((order) {
+                  ...orders.where((o) => o.latitude != 0.0 && o.longitude != 0.0).map((order) {
                     final isSelected = _selectedOrderOnMap?.id == order.id;
                     return Marker(
                       point: LatLng(order.latitude, order.longitude),

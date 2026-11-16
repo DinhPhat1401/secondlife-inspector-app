@@ -18,10 +18,7 @@ class RouterNotifier extends ChangeNotifier {
   final Ref _ref;
 
   RouterNotifier(this._ref) {
-    _ref.listen<AuthState>(
-      authProvider,
-      (_, _) => notifyListeners(),
-    );
+    _ref.listen<AuthState>(authProvider, (_, _) => notifyListeners());
   }
 
   String? redirect(BuildContext context, GoRouterState state) {
@@ -63,10 +60,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/splash',
         builder: (context, state) => const SplashScreen(),
       ),
-      GoRoute(
-        path: '/login',
-        builder: (context, state) => const LoginScreen(),
-      ),
+      GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(
         path: '/dashboard',
         builder: (context, state) => const InspectorShellScreen(),
@@ -88,9 +82,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/checklist-execution',
-        builder: (context, state) => ChecklistExecutionScreen(
-          order: state.extra as InspectionOrder?,
-        ),
+        builder: (context, state) => state.extra is InspectionOrder
+            ? ChecklistExecutionScreen(order: state.extra as InspectionOrder)
+            : const InspectorShellScreen(),
       ),
       GoRoute(
         path: '/seal-scanner',
@@ -98,9 +92,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/seal-verification',
-        builder: (context, state) => SealVerificationScreen(
-          tamperSealId: state.extra as String?,
-        ),
+        builder: (context, state) =>
+            SealVerificationScreen(tamperSealId: state.extra as String?),
       ),
       GoRoute(
         path: '/notifications',

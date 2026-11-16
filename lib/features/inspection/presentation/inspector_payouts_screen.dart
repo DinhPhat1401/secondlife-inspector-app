@@ -277,43 +277,43 @@ class _InspectorPayoutsScreenState extends ConsumerState<InspectorPayoutsScreen>
             children: [
               // Row 1: Badges & Status
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: item.isAtHome ? AppColors.mapBlue.withValues(alpha: 0.12) : Colors.purple.shade50,
-                          borderRadius: BorderRadius.circular(6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: item.isAtHome ? AppColors.mapBlue.withValues(alpha: 0.12) : Colors.purple.shade50,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          item.isAtHome ? Icons.home_outlined : Icons.apartment_outlined,
+                          size: 13,
+                          color: item.isAtHome ? AppColors.mapBlue : Colors.purple.shade700,
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              item.isAtHome ? Icons.home_outlined : Icons.apartment_outlined,
-                              size: 13,
-                              color: item.isAtHome ? AppColors.mapBlue : Colors.purple.shade700,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              item.isAtHome ? 'Tận nơi' : 'Tại trạm',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: item.isAtHome ? AppColors.mapBlue : Colors.purple.shade700,
-                              ),
-                            ),
-                          ],
+                        const SizedBox(width: 4),
+                        Text(
+                          item.isAtHome ? 'Tận nơi' : 'Tại trạm',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: item.isAtHome ? AppColors.mapBlue : Colors.purple.shade700,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        item.payoutId,
-                        style: const TextStyle(fontSize: 11, color: AppColors.slate400, fontWeight: FontWeight.w600),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      item.payoutId.length > 8 ? '#${item.payoutId.substring(0, 8).toUpperCase()}' : item.payoutId,
+                      style: const TextStyle(fontSize: 11, color: AppColors.slate400, fontWeight: FontWeight.w600),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
@@ -369,13 +369,17 @@ class _InspectorPayoutsScreenState extends ConsumerState<InspectorPayoutsScreen>
                       'Tiền công: ${currencyFormatter.format(item.laborFee)}'
                       '${item.travelFee > 0 ? " + Phụ cấp: ${currencyFormatter.format(item.travelFee)}" : ""}',
                       style: const TextStyle(fontSize: 12, color: AppColors.slate600),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  if (item.completedAt != null)
+                  if (item.completedAt != null) ...[
+                    const SizedBox(width: 8),
                     Text(
                       dateFormatter.format(item.completedAt!.toLocal()),
                       style: const TextStyle(fontSize: 11, color: AppColors.slate400),
                     ),
+                  ],
                 ],
               ),
             ],

@@ -16,15 +16,19 @@ class InspectorProfileScreen extends ConsumerWidget {
     final stats = statsState.stats;
     final currencyFormatter = NumberFormat.currency(locale: 'vi_VN', symbol: '₫');
 
+    final defaultBadge = auth.inspectorId.isNotEmpty
+        ? 'INS-${auth.inspectorId.substring(0, auth.inspectorId.length > 8 ? 8 : auth.inspectorId.length).toUpperCase()}'
+        : 'INSPECTOR';
+
     final badgeCode = stats?.badgeCode.isNotEmpty == true
         ? stats!.badgeCode
-        : (auth.badgeCode ?? 'SL-TECH-F9B1');
+        : (auth.badgeCode ?? defaultBadge);
 
     final certTitle = auth.certificationTitle ??
         stats?.skillLevel ??
-        'Kỹ thuật viên Thẩm định Thiết bị Bậc 3';
+        auth.badgeTitle;
 
-    final stationHub = auth.stationHubName ?? 'Trung Tâm SecondLife - Trạm Khu CNC Thủ Đức';
+    final stationHub = auth.stationHubName ?? 'Trung Tâm Kiểm Định SecondLife';
 
     return Scaffold(
       backgroundColor: AppColors.background,

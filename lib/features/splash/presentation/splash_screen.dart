@@ -56,6 +56,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     // Smooth splash experience: wait for logo animation to complete
     await Future.delayed(const Duration(milliseconds: 1400));
 
+    // Wait until auth verification completes if still loading
+    while (mounted && ref.read(authProvider).isLoading) {
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
+
     if (!mounted) return;
 
     final auth = ref.read(authProvider);

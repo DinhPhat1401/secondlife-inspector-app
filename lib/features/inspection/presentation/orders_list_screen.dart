@@ -30,6 +30,13 @@ class _OrdersListScreenState extends ConsumerState<OrdersListScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.qr_code_scanner_rounded),
+        label: const Text('Nhập Trạm / Check-in', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+        onPressed: () => _showHubCheckInDialog(context),
+      ),
       appBar: AppBar(
         titleSpacing: 16,
         elevation: 0.5,
@@ -81,7 +88,7 @@ class _OrdersListScreenState extends ConsumerState<OrdersListScreen> {
                   ),
                   const SizedBox(height: 1),
                   Text(
-                    auth.stationHubName ?? 'Trạm Điều Phối Thủ Đức',
+                    auth.stationHubName ?? 'Trung tâm kiểm định',
                     style: const TextStyle(fontSize: 11, color: AppColors.slate500, fontWeight: FontWeight.normal),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -221,13 +228,17 @@ class _OrdersListScreenState extends ConsumerState<OrdersListScreen> {
     InspectorStatsState statsState,
     InspectorStats? stats,
   ) {
+    final defaultBadge = auth.inspectorId.isNotEmpty
+        ? 'INS-${auth.inspectorId.substring(0, auth.inspectorId.length > 8 ? 8 : auth.inspectorId.length).toUpperCase()}'
+        : 'INSPECTOR';
+
     final badgeCode = stats?.badgeCode.isNotEmpty == true
         ? stats!.badgeCode
-        : (auth.badgeCode ?? 'SL-TECH-F9B1');
+        : (auth.badgeCode ?? defaultBadge);
 
     final skillLevel = stats?.skillLevel.isNotEmpty == true
         ? stats!.skillLevel
-        : (auth.certificationTitle ?? 'Kỹ thuật viên Thẩm định Bậc 3');
+        : (auth.certificationTitle ?? auth.badgeTitle);
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
@@ -649,10 +660,10 @@ class _OrdersListScreenState extends ConsumerState<OrdersListScreen> {
               Row(
                 children: [
                   Text(
-                    '#${order.id}',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.slate900),
+                    '#${order.id.length > 8 ? order.id.substring(0, 8).toUpperCase() : order.id}',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.slate900),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
@@ -692,20 +703,25 @@ class _OrdersListScreenState extends ConsumerState<OrdersListScreen> {
                 children: [
                   ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      order.postImageUrls.isNotEmpty
-                          ? order.postImageUrls.first
-                          : 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=300',
-                      width: 72,
-                      height: 72,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, url, error) => Container(
-                        width: 72,
-                        height: 72,
-                        color: AppColors.slate100,
-                        child: const Icon(Icons.devices, color: AppColors.slate400),
-                      ),
-                    ),
+                    child: order.postImageUrls.isNotEmpty && order.postImageUrls.first.trim().isNotEmpty
+                        ? Image.network(
+                            order.postImageUrls.first,
+                            width: 72,
+                            height: 72,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, url, error) => Container(
+                              width: 72,
+                              height: 72,
+                              color: AppColors.slate100,
+                              child: const Icon(Icons.devices, color: AppColors.slate400),
+                            ),
+                          )
+                        : Container(
+                            width: 72,
+                            height: 72,
+                            color: AppColors.slate100,
+                            child: const Icon(Icons.devices, color: AppColors.slate400),
+                          ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -743,15 +759,21 @@ class _OrdersListScreenState extends ConsumerState<OrdersListScreen> {
                       children: [
                         const Icon(Icons.person_pin, size: 16, color: AppColors.slate600),
                         const SizedBox(width: 6),
-                        Text(
-                          'Người bán: ${order.sellerName}',
-                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.slate800),
+                        Expanded(
+                          child: Text(
+                            'Người bán: ${order.sellerName}',
+                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.slate800),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                        const Spacer(),
-                        Text(
-                          order.sellerPhone ?? '',
-                          style: const TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.bold),
-                        ),
+                        if (order.sellerPhone != null && order.sellerPhone!.isNotEmpty) ...[
+                          const SizedBox(width: 8),
+                          Text(
+                            order.sellerPhone!,
+                            style: const TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.bold),
+                          ),
+                        ],
                       ],
                     ),
                     const SizedBox(height: 6),
@@ -778,14 +800,18 @@ class _OrdersListScreenState extends ConsumerState<OrdersListScreen> {
                 children: [
                   const Icon(Icons.access_time_rounded, size: 16, color: AppColors.amber),
                   const SizedBox(width: 6),
-                  Text(
-                    order.appointmentScheduledAt != null
-                        ? dateFormatter.format(order.appointmentScheduledAt!)
-                        : 'Chưa xếp lịch',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.slate800),
+                  Expanded(
+                    child: Text(
+                      order.appointmentScheduledAt != null
+                          ? dateFormatter.format(order.appointmentScheduledAt!)
+                          : 'Chưa xếp lịch',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.slate800),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                  const Spacer(),
                   if (order.isAtHome) ...[
+                    const SizedBox(width: 8),
                     const Icon(Icons.directions_bike_rounded, size: 16, color: AppColors.mapBlue),
                     const SizedBox(width: 4),
                     Text(
@@ -833,6 +859,83 @@ class _OrdersListScreenState extends ConsumerState<OrdersListScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _showHubCheckInDialog(BuildContext context) {
+    final barcodeCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.qr_code_scanner_rounded, color: AppColors.primary),
+            SizedBox(width: 8),
+            Expanded(child: Text('Check-in Nhập Trạm / Hub', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Nhập mã Barcode hoặc mã kiện hàng trên bưu phẩm shipper bàn giao tới Trạm để xác nhận tiếp nhận:',
+              style: TextStyle(fontSize: 12, color: AppColors.slate600),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: barcodeCtrl,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'Mã Barcode / Check-in',
+                hintText: 'VD: INSP-2026-..., hoặc mã bưu gửi',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.barcode_reader),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Đóng'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+            onPressed: () async {
+              final code = barcodeCtrl.text.trim();
+              if (code.isEmpty) return;
+              Navigator.pop(ctx);
+
+              final orders = ref.read(inspectionProvider).orders;
+              final matched = orders.where((o) =>
+                  o.id.toLowerCase().contains(code.toLowerCase()) ||
+                  (o.barcode != null && o.barcode!.toLowerCase().contains(code.toLowerCase()))
+              ).firstOrNull;
+
+              if (matched != null) {
+                ref.read(inspectionProvider.notifier).selectOrder(matched);
+                context.push('/order-detail', extra: matched);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Đã tìm thấy đơn #${matched.id.substring(0, 8)} tương ứng mã $code'),
+                    backgroundColor: AppColors.passGreen,
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Không tìm thấy đơn kiểm định nào khớp mã $code'),
+                    backgroundColor: AppColors.failRed,
+                  ),
+                );
+              }
+            },
+            child: const Text('Tra Cứu & Tiếp Nhận', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
       ),
     );
   }

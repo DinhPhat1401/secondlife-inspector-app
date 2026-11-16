@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_colors.dart';
+import '../models/checklist_item.dart';
 import '../models/inspection_order.dart';
 import '../providers/inspection_provider.dart';
 
@@ -10,39 +12,57 @@ class ChecklistExecutionScreen extends ConsumerStatefulWidget {
   const ChecklistExecutionScreen({super.key, this.order});
 
   @override
-  ConsumerState<ChecklistExecutionScreen> createState() => _ChecklistExecutionScreenState();
+  ConsumerState<ChecklistExecutionScreen> createState() =>
+      _ChecklistExecutionScreenState();
 }
 
-class _ChecklistExecutionScreenState extends ConsumerState<ChecklistExecutionScreen> {
+class _ChecklistExecutionScreenState
+    extends ConsumerState<ChecklistExecutionScreen> {
   late InspectionOrder _order;
-  double _conditionScore = 92;
-  String _conditionGrade = 'A - Rất Tốt';
-  final _sealIdController = TextEditingController(text: 'SL-SEAL-9081-A1');
-  final _barcodeController = TextEditingController(text: 'SL90812026');
-  final _videoUrlController = TextEditingController(
-      text: 'https://cloudinary.com/secondlife/inspection/video_proof_daikin.mp4');
-  final _overallNoteController = TextEditingController(
-      text: 'Máy nén hoạt động êm ái, bo mạch nguyên zin chưa qua sửa chữa, độ lạnh đạt chuẩn 16°C sau 10 phút.');
+  double _conditionScore = 0;
+  String _conditionGrade = 'Chưa chấm điểm';
+  final _sealIdController = TextEditingController();
+  final _barcodeController = TextEditingController();
+  final _videoUrlController = TextEditingController();
+  final _overallNoteController = TextEditingController();
   bool _isGeneratingSeal = false;
+  bool _isUploadingEvidence = false;
+
+  String _calculateGrade(double val) {
+    if (val >= 95) return 'S - Nguyên Bản Mới';
+    if (val >= 88) return 'A - Rất Tốt';
+    if (val >= 75) return 'B - Tốt (Ổn Định)';
+    if (val >= 50) return 'C - Trung Bình';
+    if (val > 0) return 'D - Kém (Cần Sửa Chữa)';
+    return 'Chưa chấm điểm';
+  }
 
   @override
   void initState() {
     super.initState();
-    _order = widget.order ??
+    _order =
+        widget.order ??
         ref.read(inspectionProvider).selectedOrder ??
         ref.read(inspectionProvider).orders.first;
 
-    if (_order.tamperSealId != null) {
+    if (_order.tamperSealId != null && _order.tamperSealId!.isNotEmpty) {
       _sealIdController.text = _order.tamperSealId!;
     }
-    if (_order.barcode != null) {
+    if (_order.barcode != null && _order.barcode!.isNotEmpty) {
       _barcodeController.text = _order.barcode!;
     }
-    if (_order.conditionScore != null) {
-      _conditionScore = _order.conditionScore!.toDouble();
+    if (_order.videoProofUrl != null && _order.videoProofUrl!.isNotEmpty) {
+      _videoUrlController.text = _order.videoProofUrl!;
     }
-    if (_order.conditionGrade != null) {
-      _conditionGrade = _order.conditionGrade!;
+    if (_order.note != null && _order.note!.isNotEmpty) {
+      _overallNoteController.text = _order.note!;
+    }
+    if (_order.conditionScore != null && _order.conditionScore! > 0) {
+      _conditionScore = _order.conditionScore!.toDouble();
+      _conditionGrade =
+          _order.conditionGrade != null && _order.conditionGrade!.isNotEmpty
+          ? _order.conditionGrade!
+          : _calculateGrade(_conditionScore);
     }
 
     Future.microtask(() {
@@ -52,13 +72,16 @@ class _ChecklistExecutionScreenState extends ConsumerState<ChecklistExecutionScr
 
   Future<void> _generateSeal() async {
     setState(() => _isGeneratingSeal = true);
-    final sealCode = await ref.read(inspectionProvider.notifier).generateSeal(_order.id);
+    final sealCode = await ref
+        .read(inspectionProvider.notifier)
+        .generateSeal(_order.id);
     setState(() => _isGeneratingSeal = false);
 
     if (sealCode != null && mounted) {
       setState(() {
         _sealIdController.text = sealCode;
-        if (_barcodeController.text.isEmpty || _barcodeController.text.startsWith('SL')) {
+        if (_barcodeController.text.isEmpty ||
+            _barcodeController.text.startsWith('SL')) {
           _barcodeController.text = sealCode.replaceAll('-', '');
         }
       });
@@ -66,7 +89,9 @@ class _ChecklistExecutionScreenState extends ConsumerState<ChecklistExecutionScr
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: const Row(
             children: [
               Icon(Icons.qr_code_2_rounded, color: AppColors.primary, size: 28),
@@ -86,7 +111,11 @@ class _ChecklistExecutionScreenState extends ConsumerState<ChecklistExecutionScr
                 ),
                 child: Column(
                   children: [
-                    const Icon(Icons.qr_code_scanner, size: 100, color: AppColors.primary),
+                    const Icon(
+                      Icons.qr_code_scanner,
+                      size: 100,
+                      color: AppColors.primary,
+                    ),
                     const SizedBox(height: 12),
                     SelectableText(
                       sealCode,
@@ -123,7 +152,9 @@ class _ChecklistExecutionScreenState extends ConsumerState<ChecklistExecutionScr
                 Navigator.pop(ctx);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Đã gán mã tem niêm phong vào biên bản thẩm định!'),
+                    content: Text(
+                      'Đã gán mã tem niêm phong vào biên bản thẩm định!',
+                    ),
                     backgroundColor: AppColors.passGreen,
                   ),
                 );
@@ -137,6 +168,57 @@ class _ChecklistExecutionScreenState extends ConsumerState<ChecklistExecutionScr
     }
   }
 
+  Future<void> _captureChecklistEvidence(ChecklistItem item) async {
+    try {
+      final image = await ImagePicker().pickImage(
+        source: ImageSource.camera,
+        imageQuality: 85,
+      );
+      if (image == null || !mounted) return;
+
+      setState(() => _isUploadingEvidence = true);
+      final url = await ref
+          .read(inspectionProvider.notifier)
+          .uploadEvidencePhoto(image.path);
+      if (!mounted) return;
+
+      if (url == null) {
+        final message =
+            ref.read(inspectionProvider).errorMessage ??
+            'Không thể tải ảnh minh chứng lên hệ thống.';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message), backgroundColor: AppColors.failRed),
+        );
+        return;
+      }
+
+      ref
+          .read(inspectionProvider.notifier)
+          .updateChecklistItem(
+            item.id,
+            item.passed ?? false,
+            item.inspectorNote,
+            url,
+          );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Đã tải ảnh minh chứng cho hạng mục.'),
+          backgroundColor: AppColors.passGreen,
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Không thể chụp ảnh minh chứng: $error'),
+          backgroundColor: AppColors.failRed,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isUploadingEvidence = false);
+    }
+  }
+
   @override
   void dispose() {
     _sealIdController.dispose();
@@ -147,7 +229,39 @@ class _ChecklistExecutionScreenState extends ConsumerState<ChecklistExecutionScr
   }
 
   void _submit(String outcome) async {
-    final success = await ref.read(inspectionProvider.notifier).submitInspectionResult(
+    final checklist = ref.read(inspectionProvider).currentChecklist;
+    final mandatoryItems = checklist.where((item) => item.mandatory);
+    final allMandatoryPassed =
+        mandatoryItems.isNotEmpty &&
+        mandatoryItems.every((item) => item.passed == true);
+
+    if (outcome == 'PASSED' && !allMandatoryPassed) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Hãy đánh giá ĐẠT tất cả hạng mục bắt buộc trước khi cấp chứng nhận.',
+          ),
+          backgroundColor: AppColors.failRed,
+        ),
+      );
+      return;
+    }
+
+    if (outcome == 'PASSED' && _conditionScore <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Vui lòng kéo thanh điểm chất lượng (Condition Score) trước khi xác nhận Đạt chuẩn!',
+          ),
+          backgroundColor: AppColors.failRed,
+        ),
+      );
+      return;
+    }
+
+    final success = await ref
+        .read(inspectionProvider.notifier)
+        .submitInspectionResult(
           orderId: _order.id,
           status: outcome,
           conditionScore: _conditionScore.toInt(),
@@ -163,16 +277,26 @@ class _ChecklistExecutionScreenState extends ConsumerState<ChecklistExecutionScr
         context: context,
         barrierDismissible: false,
         builder: (ctx) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: Row(
             children: [
               Icon(
-                outcome == 'PASSED' ? Icons.verified : Icons.warning_amber_rounded,
-                color: outcome == 'PASSED' ? AppColors.passGreen : AppColors.failRed,
+                outcome == 'PASSED'
+                    ? Icons.verified
+                    : Icons.warning_amber_rounded,
+                color: outcome == 'PASSED'
+                    ? AppColors.passGreen
+                    : AppColors.failRed,
                 size: 28,
               ),
               const SizedBox(width: 8),
-              Text(outcome == 'PASSED' ? 'Kiểm Định ĐẠT CHUẨN' : 'Kiểm Định KHÔNG ĐẠT'),
+              Text(
+                outcome == 'PASSED'
+                    ? 'Kiểm Định ĐẠT CHUẨN'
+                    : 'Kiểm Định KHÔNG ĐẠT',
+              ),
             ],
           ),
           content: Column(
@@ -193,11 +317,21 @@ class _ChecklistExecutionScreenState extends ConsumerState<ChecklistExecutionScr
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Mã tem niêm phong: ${_sealIdController.text}',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    Text(
+                      'Mã tem niêm phong: ${_sealIdController.text}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
                     const SizedBox(height: 4),
-                    Text('Điểm đánh giá: ${_conditionScore.toInt()}/100 ($_conditionGrade)',
-                        style: const TextStyle(fontSize: 13, color: AppColors.slate700)),
+                    Text(
+                      'Điểm đánh giá: ${_conditionScore.toInt()}/100 ($_conditionGrade)',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.slate700,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -214,7 +348,10 @@ class _ChecklistExecutionScreenState extends ConsumerState<ChecklistExecutionScr
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(ctx);
-                context.push('/seal-verification', extra: _sealIdController.text.trim());
+                context.push(
+                  '/seal-verification',
+                  extra: _sealIdController.text.trim(),
+                );
               },
               child: const Text('XEM CHỨNG THƯ TEM'),
             ),
@@ -229,14 +366,13 @@ class _ChecklistExecutionScreenState extends ConsumerState<ChecklistExecutionScr
     final state = ref.watch(inspectionProvider);
     final checklist = state.currentChecklist;
 
-    final allMandatoryPassed = checklist
-        .where((item) => item.mandatory)
-        .every((item) => item.passed == true);
+    final mandatoryItems = checklist.where((item) => item.mandatory);
+    final allMandatoryPassed =
+        mandatoryItems.isNotEmpty &&
+        mandatoryItems.every((item) => item.passed == true);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Biên Bản Kỹ Thuật & Cấp Tem'),
-      ),
+      appBar: AppBar(title: const Text('Biên Bản Kỹ Thuật & Cấp Tem')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -248,18 +384,33 @@ class _ChecklistExecutionScreenState extends ConsumerState<ChecklistExecutionScr
                 padding: const EdgeInsets.all(12),
                 child: Row(
                   children: [
-                    const Icon(Icons.settings_suggest, color: AppColors.primary),
+                    const Icon(
+                      Icons.settings_suggest,
+                      color: AppColors.primary,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Đơn kiểm định #${_order.id}',
-                              style: const TextStyle(fontSize: 11, color: AppColors.slate500)),
-                          Text(_order.postTitle,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                          Text(
+                            'Đơn kiểm định #${_order.id.length > 8 ? _order.id.substring(0, 8).toUpperCase() : _order.id}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppColors.slate500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            _order.postTitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -272,7 +423,11 @@ class _ChecklistExecutionScreenState extends ConsumerState<ChecklistExecutionScr
             // Section 1: Checklist Items
             const Text(
               '1. Danh Mục Tiêu Chuẩn Kiểm Định (Checklist)',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.slate900),
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: AppColors.slate900,
+              ),
             ),
             const SizedBox(height: 4),
             Row(
@@ -284,8 +439,12 @@ class _ChecklistExecutionScreenState extends ConsumerState<ChecklistExecutionScr
                         : 'Đánh giá từng hạng mục bắt buộc. Phải đạt tất cả mục để cấp tem PASSED.',
                     style: TextStyle(
                       fontSize: 12,
-                      fontWeight: allMandatoryPassed ? FontWeight.bold : FontWeight.normal,
-                      color: allMandatoryPassed ? AppColors.passGreen : AppColors.slate500,
+                      fontWeight: allMandatoryPassed
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                      color: allMandatoryPassed
+                          ? AppColors.passGreen
+                          : AppColors.slate500,
                     ),
                   ),
                 ),
@@ -309,26 +468,39 @@ class _ChecklistExecutionScreenState extends ConsumerState<ChecklistExecutionScr
                             child: Text(
                               '${item.orderIndex}',
                               style: const TextStyle(
-                                  fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primaryDark),
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primaryDark,
+                              ),
                             ),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               item.itemTitle,
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
                             ),
                           ),
                           if (item.mandatory)
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.red.shade50,
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: const Text(
                                 'Bắt buộc',
-                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.red),
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.red,
+                                ),
                               ),
                             ),
                         ],
@@ -336,8 +508,41 @@ class _ChecklistExecutionScreenState extends ConsumerState<ChecklistExecutionScr
                       const SizedBox(height: 6),
                       Text(
                         item.criteriaDescription,
-                        style: const TextStyle(fontSize: 12, color: AppColors.slate600),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.slate600,
+                        ),
                       ),
+                      const SizedBox(height: 8),
+                      OutlinedButton.icon(
+                        onPressed: _isUploadingEvidence
+                            ? null
+                            : () => _captureChecklistEvidence(item),
+                        icon: const Icon(Icons.camera_alt_outlined, size: 16),
+                        label: Text(
+                          item.photoProofUrl == null
+                              ? 'Chụp ảnh minh chứng'
+                              : 'Chụp lại ảnh minh chứng',
+                        ),
+                      ),
+                      if (item.photoProofUrl != null)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 2),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.check_circle,
+                                size: 15,
+                                color: AppColors.passGreen,
+                              ),
+                              SizedBox(width: 4),
+                              Text(
+                                'Đã tải ảnh minh chứng',
+                                style: TextStyle(fontSize: 11),
+                              ),
+                            ],
+                          ),
+                        ),
                       const SizedBox(height: 12),
 
                       Row(
@@ -345,20 +550,31 @@ class _ChecklistExecutionScreenState extends ConsumerState<ChecklistExecutionScr
                           Expanded(
                             child: OutlinedButton.icon(
                               onPressed: () {
-                                ref.read(inspectionProvider.notifier).updateChecklistItem(
+                                ref
+                                    .read(inspectionProvider.notifier)
+                                    .updateChecklistItem(
                                       item.id,
                                       true,
                                       item.inspectorNote,
                                       item.photoProofUrl,
                                     );
                               },
-                              icon: const Icon(Icons.check_circle_outline, size: 16),
+                              icon: const Icon(
+                                Icons.check_circle_outline,
+                                size: 16,
+                              ),
                               label: const Text('ĐẠT (PASS)'),
                               style: OutlinedButton.styleFrom(
-                                backgroundColor: item.passed == true ? AppColors.passGreenLight : null,
-                                foregroundColor: item.passed == true ? AppColors.passGreen : AppColors.slate600,
+                                backgroundColor: item.passed == true
+                                    ? AppColors.passGreenLight
+                                    : null,
+                                foregroundColor: item.passed == true
+                                    ? AppColors.passGreen
+                                    : AppColors.slate600,
                                 side: BorderSide(
-                                  color: item.passed == true ? AppColors.passGreen : AppColors.cardBorder,
+                                  color: item.passed == true
+                                      ? AppColors.passGreen
+                                      : AppColors.cardBorder,
                                   width: item.passed == true ? 2 : 1,
                                 ),
                               ),
@@ -368,7 +584,9 @@ class _ChecklistExecutionScreenState extends ConsumerState<ChecklistExecutionScr
                           Expanded(
                             child: OutlinedButton.icon(
                               onPressed: () {
-                                ref.read(inspectionProvider.notifier).updateChecklistItem(
+                                ref
+                                    .read(inspectionProvider.notifier)
+                                    .updateChecklistItem(
                                       item.id,
                                       false,
                                       item.inspectorNote,
@@ -378,10 +596,16 @@ class _ChecklistExecutionScreenState extends ConsumerState<ChecklistExecutionScr
                               icon: const Icon(Icons.cancel_outlined, size: 16),
                               label: const Text('HỎNG (FAIL)'),
                               style: OutlinedButton.styleFrom(
-                                backgroundColor: item.passed == false ? AppColors.failRedLight : null,
-                                foregroundColor: item.passed == false ? AppColors.failRed : AppColors.slate600,
+                                backgroundColor: item.passed == false
+                                    ? AppColors.failRedLight
+                                    : null,
+                                foregroundColor: item.passed == false
+                                    ? AppColors.failRed
+                                    : AppColors.slate600,
                                 side: BorderSide(
-                                  color: item.passed == false ? AppColors.failRed : AppColors.cardBorder,
+                                  color: item.passed == false
+                                      ? AppColors.failRed
+                                      : AppColors.cardBorder,
                                   width: item.passed == false ? 2 : 1,
                                 ),
                               ),
@@ -400,7 +624,11 @@ class _ChecklistExecutionScreenState extends ConsumerState<ChecklistExecutionScr
             // Section 2: Score & Condition Grade
             const Text(
               '2. Điểm Số Đánh Giá & Phân Hạng Máy (Condition Score)',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.slate900),
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: AppColors.slate900,
+              ),
             ),
             const SizedBox(height: 8),
             Card(
@@ -411,47 +639,61 @@ class _ChecklistExecutionScreenState extends ConsumerState<ChecklistExecutionScr
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Điểm chất lượng:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                        const Text(
+                          'Điểm chất lượng:',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                         Text(
                           '${_conditionScore.toInt()} / 100',
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.primary),
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.primary,
+                          ),
                         ),
                       ],
                     ),
                     Slider(
                       value: _conditionScore,
-                      min: 40,
+                      min: 0,
                       max: 100,
-                      divisions: 60,
+                      divisions: 100,
                       activeColor: AppColors.primary,
                       label: '${_conditionScore.toInt()}',
                       onChanged: (val) {
                         setState(() {
                           _conditionScore = val;
-                          if (val >= 95) {
-                            _conditionGrade = 'S - Nguyên Bản Mới';
-                          } else if (val >= 88) {
-                            _conditionGrade = 'A - Rất Tốt';
-                          } else if (val >= 75) {
-                            _conditionGrade = 'B - Tốt (Ổn Định)';
-                          } else {
-                            _conditionGrade = 'C - Trung Bình';
-                          }
+                          _conditionGrade = _calculateGrade(val);
                         });
                       },
                     ),
                     Row(
                       children: [
-                        const Text('Phân hạng máy: ', style: TextStyle(fontSize: 13, color: AppColors.slate600)),
+                        const Text(
+                          'Phân hạng máy: ',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppColors.slate600,
+                          ),
+                        ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.primaryContainer,
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
                             _conditionGrade,
-                            style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryDark),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primaryDark,
+                            ),
                           ),
                         ),
                       ],
@@ -466,7 +708,11 @@ class _ChecklistExecutionScreenState extends ConsumerState<ChecklistExecutionScr
             // Section 3: Tamper Seal & Video Proof
             const Text(
               '3. Tem Niêm Phong Chống Tráo & Bằng Chứng Video',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.slate900),
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: AppColors.slate900,
+              ),
             ),
             const SizedBox(height: 8),
             Card(
@@ -478,12 +724,20 @@ class _ChecklistExecutionScreenState extends ConsumerState<ChecklistExecutionScr
                       controller: _sealIdController,
                       decoration: InputDecoration(
                         labelText: 'Mã Tem Niêm Phong (Tamper Seal ID)',
-                        prefixIcon: const Icon(Icons.qr_code, color: AppColors.secondary),
+                        prefixIcon: const Icon(
+                          Icons.qr_code,
+                          color: AppColors.secondary,
+                        ),
                         suffixIcon: IconButton(
-                          icon: const Icon(Icons.qr_code_scanner, color: AppColors.primary),
+                          icon: const Icon(
+                            Icons.qr_code_scanner,
+                            color: AppColors.primary,
+                          ),
                           tooltip: 'Quét camera mã tem',
                           onPressed: () async {
-                            final scanned = await context.push<String>('/seal-scanner');
+                            final scanned = await context.push<String>(
+                              '/seal-scanner',
+                            );
                             if (scanned != null && scanned.isNotEmpty) {
                               setState(() => _sealIdController.text = scanned);
                             }
@@ -500,18 +754,31 @@ class _ChecklistExecutionScreenState extends ConsumerState<ChecklistExecutionScr
                             ? const SizedBox(
                                 width: 16,
                                 height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               )
-                            : const Icon(Icons.auto_awesome, color: AppColors.primary, size: 18),
+                            : const Icon(
+                                Icons.auto_awesome,
+                                color: AppColors.primary,
+                                size: 18,
+                              ),
                         label: Text(
-                          _isGeneratingSeal ? 'Đang sinh mã bảo mật...' : 'Sinh mã tem QR niêm phong (Checksum SHA-256)',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                          _isGeneratingSeal
+                              ? 'Đang sinh mã bảo mật...'
+                              : 'Sinh mã tem QR niêm phong (Checksum SHA-256)',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
                         ),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.primary,
                           side: const BorderSide(color: AppColors.primary),
                           padding: const EdgeInsets.symmetric(vertical: 10),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
                       ),
                     ),
@@ -520,16 +787,24 @@ class _ChecklistExecutionScreenState extends ConsumerState<ChecklistExecutionScr
                       controller: _barcodeController,
                       decoration: const InputDecoration(
                         labelText: 'Mã Vạch / Barcode Thân Máy',
-                        prefixIcon: Icon(Icons.barcode_reader, color: AppColors.slate600),
+                        prefixIcon: Icon(
+                          Icons.barcode_reader,
+                          color: AppColors.slate600,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: _videoUrlController,
                       decoration: const InputDecoration(
-                        labelText: 'Đường dẫn Video kiểm tra máy (Cloudinary / S3)',
-                        helperText: 'Lưu trữ bằng chứng video kiểm định có hiệu lực trong vòng 14 ngày',
-                        prefixIcon: Icon(Icons.videocam_outlined, color: AppColors.mapBlue),
+                        labelText:
+                            'Đường dẫn Video kiểm tra máy (Cloudinary / S3)',
+                        helperText:
+                            'Lưu trữ bằng chứng video kiểm định có hiệu lực trong vòng 14 ngày',
+                        prefixIcon: Icon(
+                          Icons.videocam_outlined,
+                          color: AppColors.mapBlue,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -537,7 +812,10 @@ class _ChecklistExecutionScreenState extends ConsumerState<ChecklistExecutionScr
                       controller: _overallNoteController,
                       decoration: const InputDecoration(
                         labelText: 'Kết luận chuyên môn của Kỹ thuật viên',
-                        prefixIcon: Icon(Icons.edit_note, color: AppColors.slate600),
+                        prefixIcon: Icon(
+                          Icons.edit_note,
+                          color: AppColors.slate600,
+                        ),
                       ),
                       maxLines: 3,
                     ),
@@ -550,7 +828,9 @@ class _ChecklistExecutionScreenState extends ConsumerState<ChecklistExecutionScr
 
             // Submit Buttons: PASS or FAIL
             ElevatedButton.icon(
-              onPressed: state.isSubmitting ? null : () => _submit('PASSED'),
+              onPressed: state.isSubmitting || !allMandatoryPassed
+                  ? null
+                  : () => _submit('PASSED'),
               icon: const Icon(Icons.verified_outlined),
               label: const Text('KÝ DUYỆT & CẤP CHỨNG NHẬN ĐẠT CHUẨN (PASSED)'),
               style: ElevatedButton.styleFrom(
