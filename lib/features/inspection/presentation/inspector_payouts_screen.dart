@@ -11,10 +11,12 @@ class InspectorPayoutsScreen extends ConsumerStatefulWidget {
   const InspectorPayoutsScreen({super.key});
 
   @override
-  ConsumerState<InspectorPayoutsScreen> createState() => _InspectorPayoutsScreenState();
+  ConsumerState<InspectorPayoutsScreen> createState() =>
+      _InspectorPayoutsScreenState();
 }
 
-class _InspectorPayoutsScreenState extends ConsumerState<InspectorPayoutsScreen> {
+class _InspectorPayoutsScreenState
+    extends ConsumerState<InspectorPayoutsScreen> {
   final ScrollController _scrollController = ScrollController();
   final currencyFormatter = NumberFormat.currency(locale: 'vi_VN', symbol: '₫');
   final dateFormatter = DateFormat('HH:mm - dd/MM/yyyy');
@@ -32,7 +34,8 @@ class _InspectorPayoutsScreenState extends ConsumerState<InspectorPayoutsScreen>
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
       ref.read(inspectorStatsProvider.notifier).loadMorePayouts();
     }
   }
@@ -57,12 +60,16 @@ class _InspectorPayoutsScreenState extends ConsumerState<InspectorPayoutsScreen>
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
             tooltip: 'Làm mới',
-            onPressed: () => ref.read(inspectorStatsProvider.notifier).fetchPayouts(page: 0, refresh: true),
+            onPressed: () => ref
+                .read(inspectorStatsProvider.notifier)
+                .fetchPayouts(page: 0, refresh: true),
           ),
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: () => ref.read(inspectorStatsProvider.notifier).fetchPayouts(page: 0, refresh: true),
+        onRefresh: () => ref
+            .read(inspectorStatsProvider.notifier)
+            .fetchPayouts(page: 0, refresh: true),
         child: CustomScrollView(
           controller: _scrollController,
           slivers: [
@@ -95,36 +102,62 @@ class _InspectorPayoutsScreenState extends ConsumerState<InspectorPayoutsScreen>
                         children: [
                           const Row(
                             children: [
-                              Icon(Icons.verified_outlined, color: Colors.amber, size: 20),
+                              Icon(
+                                Icons.verified_outlined,
+                                color: Colors.amber,
+                                size: 20,
+                              ),
                               SizedBox(width: 6),
                               Text(
                                 'Quyết Toán Thù Lao KTV',
-                                style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600),
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ],
                           ),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.white24,
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
                               '${statsState.payoutsTotalElements} giao dịch',
-                              style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        currencyFormatter.format(totalSettledAmount),
-                        style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900),
+                        statsState.payoutsError == null
+                            ? currencyFormatter.format(totalSettledAmount)
+                            : 'Chưa có dữ liệu Backend',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 26,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
                       const SizedBox(height: 4),
-                      const Text(
-                        'Tổng thù lao & phụ cấp đã quyết toán',
-                        style: TextStyle(color: Colors.white70, fontSize: 12),
+                      Text(
+                        statsState.payoutsError == null
+                            ? 'Tổng thù lao & phụ cấp đã quyết toán'
+                            : 'Backend chưa cung cấp API đối soát Inspector',
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
                       ),
                     ],
                   ),
@@ -139,7 +172,11 @@ class _InspectorPayoutsScreenState extends ConsumerState<InspectorPayoutsScreen>
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
                   children: [
-                    _buildFilterChip('ALL', 'Tất cả (${statsState.payouts.length})', statsState.payoutsFilterStatus),
+                    _buildFilterChip(
+                      'ALL',
+                      'Tất cả (${statsState.payouts.length})',
+                      statsState.payoutsFilterStatus,
+                    ),
                     const SizedBox(width: 8),
                     _buildFilterChip(
                       'SETTLED',
@@ -172,7 +209,11 @@ class _InspectorPayoutsScreenState extends ConsumerState<InspectorPayoutsScreen>
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.error_outline, size: 48, color: AppColors.failRed),
+                        const Icon(
+                          Icons.error_outline,
+                          size: 48,
+                          color: AppColors.failRed,
+                        ),
                         const SizedBox(height: 12),
                         Text(
                           statsState.payoutsError!,
@@ -181,7 +222,9 @@ class _InspectorPayoutsScreenState extends ConsumerState<InspectorPayoutsScreen>
                         ),
                         const SizedBox(height: 16),
                         ElevatedButton(
-                          onPressed: () => ref.read(inspectorStatsProvider.notifier).fetchPayouts(page: 0, refresh: true),
+                          onPressed: () => ref
+                              .read(inspectorStatsProvider.notifier)
+                              .fetchPayouts(page: 0, refresh: true),
                           child: const Text('Thử Lại'),
                         ),
                       ],
@@ -195,11 +238,18 @@ class _InspectorPayoutsScreenState extends ConsumerState<InspectorPayoutsScreen>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.receipt_long_outlined, size: 56, color: AppColors.slate400),
+                      Icon(
+                        Icons.receipt_long_outlined,
+                        size: 56,
+                        color: AppColors.slate400,
+                      ),
                       SizedBox(height: 12),
                       Text(
                         'Chưa có dữ liệu đối soát thù lao nào.',
-                        style: TextStyle(color: AppColors.slate600, fontSize: 14),
+                        style: TextStyle(
+                          color: AppColors.slate600,
+                          fontSize: 14,
+                        ),
                       ),
                     ],
                   ),
@@ -207,23 +257,23 @@ class _InspectorPayoutsScreenState extends ConsumerState<InspectorPayoutsScreen>
               )
             else
               SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      if (index == filteredList.length) {
-                        return statsState.isLoadingMorePayouts
-                            ? const Padding(
-                                padding: EdgeInsets.all(16.0),
-                                child: Center(child: CircularProgressIndicator()),
-                              )
-                            : const SizedBox(height: 40);
-                      }
-                      final item = filteredList[index];
-                      return _buildPayoutCard(item);
-                    },
-                    childCount: filteredList.length + 1,
-                  ),
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    if (index == filteredList.length) {
+                      return statsState.isLoadingMorePayouts
+                          ? const Padding(
+                              padding: EdgeInsets.all(16.0),
+                              child: Center(child: CircularProgressIndicator()),
+                            )
+                          : const SizedBox(height: 40);
+                    }
+                    final item = filteredList[index];
+                    return _buildPayoutCard(item);
+                  }, childCount: filteredList.length + 1),
                 ),
               ),
           ],
@@ -279,18 +329,27 @@ class _InspectorPayoutsScreenState extends ConsumerState<InspectorPayoutsScreen>
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
-                      color: item.isAtHome ? AppColors.mapBlue.withValues(alpha: 0.12) : Colors.purple.shade50,
+                      color: item.isAtHome
+                          ? AppColors.mapBlue.withValues(alpha: 0.12)
+                          : Colors.purple.shade50,
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          item.isAtHome ? Icons.home_outlined : Icons.apartment_outlined,
+                          item.isAtHome
+                              ? Icons.home_outlined
+                              : Icons.apartment_outlined,
                           size: 13,
-                          color: item.isAtHome ? AppColors.mapBlue : Colors.purple.shade700,
+                          color: item.isAtHome
+                              ? AppColors.mapBlue
+                              : Colors.purple.shade700,
                         ),
                         const SizedBox(width: 4),
                         Text(
@@ -298,7 +357,9 @@ class _InspectorPayoutsScreenState extends ConsumerState<InspectorPayoutsScreen>
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
-                            color: item.isAtHome ? AppColors.mapBlue : Colors.purple.shade700,
+                            color: item.isAtHome
+                                ? AppColors.mapBlue
+                                : Colors.purple.shade700,
                           ),
                         ),
                       ],
@@ -307,17 +368,28 @@ class _InspectorPayoutsScreenState extends ConsumerState<InspectorPayoutsScreen>
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      item.payoutId.length > 8 ? '#${item.payoutId.substring(0, 8).toUpperCase()}' : item.payoutId,
-                      style: const TextStyle(fontSize: 11, color: AppColors.slate400, fontWeight: FontWeight.w600),
+                      item.payoutId.length > 8
+                          ? '#${item.payoutId.substring(0, 8).toUpperCase()}'
+                          : item.payoutId,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.slate400,
+                        fontWeight: FontWeight.w600,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
-                      color: item.isSettled ? AppColors.passGreen.withValues(alpha: 0.12) : Colors.amber.shade50,
+                      color: item.isSettled
+                          ? AppColors.passGreen.withValues(alpha: 0.12)
+                          : Colors.amber.shade50,
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
@@ -325,7 +397,9 @@ class _InspectorPayoutsScreenState extends ConsumerState<InspectorPayoutsScreen>
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
-                        color: item.isSettled ? AppColors.passGreen : Colors.amber.shade900,
+                        color: item.isSettled
+                            ? AppColors.passGreen
+                            : Colors.amber.shade900,
                       ),
                     ),
                   ),
@@ -340,7 +414,11 @@ class _InspectorPayoutsScreenState extends ConsumerState<InspectorPayoutsScreen>
                   Expanded(
                     child: Text(
                       item.postTitle,
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.slate900),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.slate900,
+                      ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -368,7 +446,10 @@ class _InspectorPayoutsScreenState extends ConsumerState<InspectorPayoutsScreen>
                     child: Text(
                       'Tiền công: ${currencyFormatter.format(item.laborFee)}'
                       '${item.travelFee > 0 ? " + Phụ cấp: ${currencyFormatter.format(item.travelFee)}" : ""}',
-                      style: const TextStyle(fontSize: 12, color: AppColors.slate600),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.slate600,
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -377,7 +458,10 @@ class _InspectorPayoutsScreenState extends ConsumerState<InspectorPayoutsScreen>
                     const SizedBox(width: 8),
                     Text(
                       dateFormatter.format(item.completedAt!.toLocal()),
-                      style: const TextStyle(fontSize: 11, color: AppColors.slate400),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.slate400,
+                      ),
                     ),
                   ],
                 ],

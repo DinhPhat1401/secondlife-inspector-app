@@ -14,7 +14,10 @@ class InspectorProfileScreen extends ConsumerWidget {
     final auth = ref.watch(authProvider);
     final statsState = ref.watch(inspectorStatsProvider);
     final stats = statsState.stats;
-    final currencyFormatter = NumberFormat.currency(locale: 'vi_VN', symbol: '₫');
+    final currencyFormatter = NumberFormat.currency(
+      locale: 'vi_VN',
+      symbol: '₫',
+    );
 
     final defaultBadge = auth.inspectorId.isNotEmpty
         ? 'INS-${auth.inspectorId.substring(0, auth.inspectorId.length > 8 ? 8 : auth.inspectorId.length).toUpperCase()}'
@@ -24,9 +27,8 @@ class InspectorProfileScreen extends ConsumerWidget {
         ? stats!.badgeCode
         : (auth.badgeCode ?? defaultBadge);
 
-    final certTitle = auth.certificationTitle ??
-        stats?.skillLevel ??
-        auth.badgeTitle;
+    final certTitle =
+        auth.certificationTitle ?? stats?.skillLevel ?? auth.badgeTitle;
 
     final stationHub = auth.stationHubName ?? 'Trung Tâm Kiểm Định SecondLife';
 
@@ -95,7 +97,11 @@ class InspectorProfileScreen extends ConsumerWidget {
                           child: const CircleAvatar(
                             radius: 32,
                             backgroundColor: Colors.white,
-                            child: Icon(Icons.engineering, size: 36, color: AppColors.primary),
+                            child: Icon(
+                              Icons.engineering,
+                              size: 36,
+                              color: AppColors.primary,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 16),
@@ -107,7 +113,9 @@ class InspectorProfileScreen extends ConsumerWidget {
                                 children: [
                                   Flexible(
                                     child: Text(
-                                      auth.inspectorName.isNotEmpty ? auth.inspectorName : 'Kỹ Thuật Viên',
+                                      auth.inspectorName.isNotEmpty
+                                          ? auth.inspectorName
+                                          : 'Kỹ Thuật Viên',
                                       style: const TextStyle(
                                         color: Colors.white,
                                         fontWeight: FontWeight.bold,
@@ -116,28 +124,50 @@ class InspectorProfileScreen extends ConsumerWidget {
                                     ),
                                   ),
                                   const SizedBox(width: 6),
-                                  const Icon(Icons.verified, color: Colors.amber, size: 20),
+                                  const Icon(
+                                    Icons.verified,
+                                    color: Colors.amber,
+                                    size: 20,
+                                  ),
                                 ],
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                auth.email.isNotEmpty ? auth.email : 'inspector@secondlife.com',
-                                style: const TextStyle(color: Colors.white70, fontSize: 12),
+                                auth.email.isNotEmpty
+                                    ? auth.email
+                                    : 'inspector@secondlife.com',
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 12,
+                                ),
                               ),
                               const SizedBox(height: 8),
                               Row(
                                 children: [
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 3,
+                                    ),
                                     decoration: BoxDecoration(
-                                      color: Colors.black.withValues(alpha: 0.3),
+                                      color: Colors.black.withValues(
+                                        alpha: 0.3,
+                                      ),
                                       borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(color: Colors.amber.withValues(alpha: 0.6)),
+                                      border: Border.all(
+                                        color: Colors.amber.withValues(
+                                          alpha: 0.6,
+                                        ),
+                                      ),
                                     ),
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        const Icon(Icons.badge_outlined, size: 12, color: Colors.amber),
+                                        const Icon(
+                                          Icons.badge_outlined,
+                                          size: 12,
+                                          color: Colors.amber,
+                                        ),
                                         const SizedBox(width: 4),
                                         Text(
                                           badgeCode,
@@ -168,11 +198,19 @@ class InspectorProfileScreen extends ConsumerWidget {
                         Container(height: 32, width: 1, color: Colors.white24),
                         _buildProfileStat(
                           'Đánh Giá KTV',
-                          ((stats?.completedJobs ?? auth.completedJobs) > 0 && (stats?.averageRating ?? 0.0) > 0)
+                          ((stats?.completedJobs ?? auth.completedJobs) > 0 &&
+                                  (stats?.averageRating ?? 0.0) > 0)
                               ? (stats!.averageRating).toStringAsFixed(1)
                               : '--',
-                          icon: ((stats?.completedJobs ?? auth.completedJobs) > 0 && (stats?.averageRating ?? 0.0) > 0)
-                              ? const Icon(Icons.star_rounded, size: 16, color: Colors.amber)
+                          icon:
+                              ((stats?.completedJobs ?? auth.completedJobs) >
+                                      0 &&
+                                  (stats?.averageRating ?? 0.0) > 0)
+                              ? const Icon(
+                                  Icons.star_rounded,
+                                  size: 16,
+                                  color: Colors.amber,
+                                )
                               : null,
                         ),
                         Container(height: 32, width: 1, color: Colors.white24),
@@ -202,45 +240,85 @@ class InspectorProfileScreen extends ConsumerWidget {
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.account_balance_wallet, color: AppColors.passGreen),
+                          const Icon(
+                            Icons.account_balance_wallet,
+                            color: AppColors.passGreen,
+                          ),
                           const SizedBox(width: 8),
                           Text(
                             'Thu Nhập Tháng ${statsState.selectedMonth}/${statsState.selectedYear}',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.slate900),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                              color: AppColors.slate900,
+                            ),
                           ),
                           const Spacer(),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.amber.shade50,
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
-                              'Chờ: ${currencyFormatter.format(stats?.pendingSettlementAmount ?? 0.0)}',
-                              style: TextStyle(color: Colors.amber.shade900, fontSize: 11, fontWeight: FontWeight.bold),
+                              stats == null
+                                  ? 'Chờ: —'
+                                  : 'Chờ: ${currencyFormatter.format(stats.pendingSettlementAmount)}',
+                              style: TextStyle(
+                                color: Colors.amber.shade900,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 14),
                       Text(
-                        currencyFormatter.format(stats?.monthlyEarnings ?? 0.0),
-                        style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: AppColors.slate900),
+                        stats == null
+                            ? 'Chưa có dữ liệu Backend'
+                            : currencyFormatter.format(stats.monthlyEarnings),
+                        style: const TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.slate900,
+                        ),
                       ),
                       const SizedBox(height: 6),
-                      const Text(
-                        'Tổng thù lao kỹ thuật và phụ cấp di chuyển đã hoàn tất trong tháng.',
-                        style: TextStyle(fontSize: 12, color: AppColors.slate500),
+                      Text(
+                        stats == null
+                            ? 'Backend chưa cung cấp API thống kê thu nhập Inspector.'
+                            : 'Tổng thù lao kỹ thuật và phụ cấp di chuyển đã hoàn tất trong tháng.',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.slate500,
+                        ),
                       ),
                       const SizedBox(height: 12),
                       const Divider(),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text('Thù lao kỹ thuật theo đơn:', style: TextStyle(color: AppColors.slate600, fontSize: 13)),
+                          const Text(
+                            'Thù lao kỹ thuật theo đơn:',
+                            style: TextStyle(
+                              color: AppColors.slate600,
+                              fontSize: 13,
+                            ),
+                          ),
                           Text(
-                            currencyFormatter.format(stats?.laborFeeEarned ?? 0.0),
-                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                            stats == null
+                                ? '—'
+                                : currencyFormatter.format(
+                                    stats.laborFeeEarned,
+                                  ),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                            ),
                           ),
                         ],
                       ),
@@ -248,10 +326,24 @@ class InspectorProfileScreen extends ConsumerWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text('Phụ cấp xăng xe & di chuyển:', style: TextStyle(color: AppColors.slate600, fontSize: 13)),
+                          const Text(
+                            'Phụ cấp xăng xe & di chuyển:',
+                            style: TextStyle(
+                              color: AppColors.slate600,
+                              fontSize: 13,
+                            ),
+                          ),
                           Text(
-                            currencyFormatter.format(stats?.travelAllowanceEarned ?? 0.0),
-                            style: const TextStyle(fontWeight: FontWeight.w600, color: AppColors.mapBlue, fontSize: 13),
+                            stats == null
+                                ? '—'
+                                : currencyFormatter.format(
+                                    stats.travelAllowanceEarned,
+                                  ),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.mapBlue,
+                              fontSize: 13,
+                            ),
                           ),
                         ],
                       ),
@@ -260,7 +352,10 @@ class InspectorProfileScreen extends ConsumerWidget {
                         width: double.infinity,
                         child: OutlinedButton.icon(
                           onPressed: () => context.push('/payouts'),
-                          icon: const Icon(Icons.receipt_long_outlined, size: 16),
+                          icon: const Icon(
+                            Icons.receipt_long_outlined,
+                            size: 16,
+                          ),
                           label: const Text('Xem Lịch Sử Đối Soát Thù Lao'),
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 11),
@@ -283,51 +378,119 @@ class InspectorProfileScreen extends ConsumerWidget {
                 child: Column(
                   children: [
                     ListTile(
-                      leading: const Icon(Icons.hub_outlined, color: AppColors.primary),
-                      title: const Text('Trạm kỹ thuật điều phối', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                      leading: const Icon(
+                        Icons.hub_outlined,
+                        color: AppColors.primary,
+                      ),
+                      title: const Text(
+                        'Trạm kỹ thuật điều phối',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                       subtitle: Text(
                         stationHub,
-                        style: const TextStyle(fontSize: 12, color: AppColors.slate700),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.slate700,
+                        ),
                       ),
                     ),
                     const Divider(height: 1),
                     ListTile(
-                      leading: const Icon(Icons.verified_outlined, color: Colors.amber),
-                      title: const Text('Chứng chỉ chuyên môn', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                      leading: const Icon(
+                        Icons.verified_outlined,
+                        color: Colors.amber,
+                      ),
+                      title: const Text(
+                        'Chứng chỉ chuyên môn',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                       subtitle: Text(
                         certTitle,
-                        style: const TextStyle(fontSize: 12, color: AppColors.slate700),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.slate700,
+                        ),
                       ),
                     ),
                     if (auth.phone != null && auth.phone!.isNotEmpty) ...[
                       const Divider(height: 1),
                       ListTile(
-                        leading: const Icon(Icons.phone_iphone_outlined, color: AppColors.primary),
-                        title: const Text('Số điện thoại kỹ thuật viên', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                        leading: const Icon(
+                          Icons.phone_iphone_outlined,
+                          color: AppColors.primary,
+                        ),
+                        title: const Text(
+                          'Số điện thoại kỹ thuật viên',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                         subtitle: Text(
                           auth.phone!,
-                          style: const TextStyle(fontSize: 12, color: AppColors.slate700),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.slate700,
+                          ),
                         ),
                       ),
                     ],
                     const Divider(height: 1),
                     ListTile(
-                      leading: const Icon(Icons.menu_book_outlined, color: AppColors.primary),
-                      title: const Text('Sổ tay quy chuẩn kiểm định', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                      subtitle: const Text('Quy trình kiểm tra 20 bước & chuẩn dán tem niêm phong số', style: TextStyle(fontSize: 12)),
+                      leading: const Icon(
+                        Icons.menu_book_outlined,
+                        color: AppColors.primary,
+                      ),
+                      title: const Text(
+                        'Sổ tay quy chuẩn kiểm định',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      subtitle: const Text(
+                        'Quy trình kiểm tra 20 bước & chuẩn dán tem niêm phong số',
+                        style: TextStyle(fontSize: 12),
+                      ),
                       trailing: const Icon(Icons.arrow_forward_ios, size: 14),
                       onTap: () {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Quy chuẩn kỹ thuật đã đồng bộ phiên bản 2026.')),
+                          const SnackBar(
+                            content: Text(
+                              'Quy chuẩn kỹ thuật đã đồng bộ phiên bản 2026.',
+                            ),
+                          ),
                         );
                       },
                     ),
                     const Divider(height: 1),
                     ListTile(
-                      leading: const Icon(Icons.support_agent_outlined, color: AppColors.primary),
-                      title: const Text('Tổng đài hỗ trợ điều phối trạm 24/7', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                      subtitle: const Text('Hotline điều phối: 1900 8821', style: TextStyle(fontSize: 12)),
-                      trailing: const Icon(Icons.call, size: 18, color: AppColors.primary),
+                      leading: const Icon(
+                        Icons.support_agent_outlined,
+                        color: AppColors.primary,
+                      ),
+                      title: const Text(
+                        'Tổng đài hỗ trợ điều phối trạm 24/7',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      subtitle: const Text(
+                        'Hotline điều phối: 1900 8821',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      trailing: const Icon(
+                        Icons.call,
+                        size: 18,
+                        color: AppColors.primary,
+                      ),
                       onTap: () {},
                     ),
                   ],
@@ -344,10 +507,19 @@ class InspectorProfileScreen extends ConsumerWidget {
                   }
                 },
                 icon: const Icon(Icons.exit_to_app, color: AppColors.failRed),
-                label: const Text('KẾT THÚC CA TRỰC (ĐĂNG XUẤT)', style: TextStyle(color: AppColors.failRed, fontWeight: FontWeight.bold)),
+                label: const Text(
+                  'KẾT THÚC CA TRỰC (ĐĂNG XUẤT)',
+                  style: TextStyle(
+                    color: AppColors.failRed,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 style: OutlinedButton.styleFrom(
                   side: const BorderSide(color: AppColors.failRed),
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 14,
+                  ),
                 ),
               ),
               const SizedBox(height: 32),
@@ -364,15 +536,22 @@ class InspectorProfileScreen extends ConsumerWidget {
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-            if (icon != null) ...[
-              const SizedBox(width: 4),
-              icon,
-            ],
+            Text(
+              value,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+            if (icon != null) ...[const SizedBox(width: 4), icon],
           ],
         ),
         const SizedBox(height: 2),
-        Text(label, style: const TextStyle(color: Colors.white70, fontSize: 11)),
+        Text(
+          label,
+          style: const TextStyle(color: Colors.white70, fontSize: 11),
+        ),
       ],
     );
   }

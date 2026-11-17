@@ -6,8 +6,6 @@ class ApiEndpoints {
 
   // Inspector Execution Station
   static const String myAssignedOrders = '/api/v1/inspector/orders';
-  static const String inspectorStats = '/api/v1/inspector/stats';
-  static const String inspectorPayouts = '/api/v1/inspector/payouts';
   static String orderChecklist(String orderId) => '/api/v1/inspector/orders/$orderId/checklist';
   static String scheduleAppointment(String orderId) => '/api/v1/inspector/orders/$orderId/schedule';
   static String startInspection(String orderId) => '/api/v1/inspector/orders/$orderId/start';

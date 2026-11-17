@@ -1,11 +1,102 @@
-﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:dio/dio.dart';
+import 'package:secondlife_app_inspector/core/network/api_client.dart';
 import 'package:secondlife_app_inspector/features/inspection/models/checklist_item.dart';
 import 'package:secondlife_app_inspector/features/inspection/models/inspection_order.dart';
 import 'package:secondlife_app_inspector/features/inspection/models/tamper_seal.dart';
 import 'package:secondlife_app_inspector/features/inspection/providers/inspection_provider.dart';
 
+String _mockOrderStatus = 'SCHEDULED';
+final List<Map<String, dynamic>> _mockScanHistory = [];
+
+Map<String, dynamic> _mockOrder() => {
+  'id': 'INS-01',
+  'postTitle': 'Máy Lạnh Daikin',
+  'sellerName': 'Nguyễn Văn A',
+  'buyerName': 'Trần Văn B',
+  'status': _mockOrderStatus,
+  'orderType': 'AT_HOME',
+};
+
 void main() {
+  late InterceptorsWrapper apiMock;
+  late List<Interceptor> originalInterceptors;
+
+  setUp(() {
+    _mockOrderStatus = 'SCHEDULED';
+    _mockScanHistory.clear();
+    originalInterceptors = List<Interceptor>.from(ApiClient().dio.interceptors);
+    ApiClient().dio.interceptors.clear();
+    apiMock = InterceptorsWrapper(
+      onRequest: (options, handler) {
+        dynamic data;
+        final path = options.uri.path;
+        if (path == '/api/v1/inspector/orders') {
+          data = [_mockOrder()];
+        } else if (path == '/api/v1/inspector/orders/INS-01/checklist') {
+          data = {
+            'items': [
+              {
+                'id': 'chk-01',
+                'itemTitle': 'Nguồn điện',
+                'criteriaDescription': 'Kiểm tra nguồn điện',
+                'mandatory': true,
+                'orderIndex': 1,
+              },
+            ],
+          };
+        } else if (path == '/api/v1/inspection/seal/SL-SEAL-8924-A1') {
+          data = {
+            'data': {
+              'tamperSealId': 'SL-SEAL-8924-A1',
+              'productTitle': 'Máy Lạnh Daikin',
+              'conditionScore': 94,
+              'conditionGrade': 'A - Rất Tốt',
+              'inspectionStatus': 'PASSED',
+              'currentSealStatus': 'INTACT',
+              'isOfficialSecondLifeSeal': true,
+              'scanHistory': List<Map<String, dynamic>>.from(_mockScanHistory),
+            },
+          };
+        } else if (options.method == 'POST' &&
+            path == '/api/v1/inspection/seal/scan') {
+          _mockScanHistory.insert(0, {
+            'id': 'scan-1',
+            ...Map<String, dynamic>.from(options.data as Map),
+            'scannedAt': DateTime.now().toIso8601String(),
+          });
+          data = {'data': _mockScanHistory.first};
+        } else if (options.method == 'POST' &&
+            path == '/api/v1/inspector/orders/INS-01/result') {
+          final request = Map<String, dynamic>.from(options.data as Map);
+          _mockOrderStatus = request['status'].toString();
+          data = {
+            'data': {
+              ..._mockOrder(),
+              'conditionScore': request['conditionScore'],
+              'conditionGrade': request['conditionGrade'],
+              'tamperSealId': request['tamperSealId'],
+              'note': request['note'],
+            },
+          };
+        } else if (path == '/api/v1/inspector/orders/INS-01') {
+          data = _mockOrder();
+        } else {
+          data = {'data': _mockOrder()};
+        }
+        handler.resolve(Response(requestOptions: options, data: data));
+      },
+    );
+    ApiClient().dio.interceptors.add(apiMock);
+  });
+
+  tearDown(() {
+    ApiClient().dio.interceptors
+      ..clear()
+      ..addAll(originalInterceptors);
+  });
+
   group('ChecklistItem Model Tests', () {
     test('ChecklistItem parsing and result serialization', () {
       final item = ChecklistItem(
@@ -20,7 +111,10 @@ void main() {
       final jsonResult = item.toResultJson();
       expect(jsonResult['itemId'], 'chk-power');
       expect(jsonResult['passed'], true);
-      expect(jsonResult['inspectorNote'], 'Điện áp 220V ổn định, tiếp địa chuẩn');
+      expect(
+        jsonResult['inspectorNote'],
+        'Điện áp 220V ổn định, tiếp địa chuẩn',
+      );
     });
 
     test('ChecklistItem copyWith updates values correctly', () {
@@ -91,21 +185,24 @@ void main() {
   });
 
   group('InspectionNotifier State & Filter Tests', () {
-    test('Notifier filters and search works as expected', () {
+    test('Notifier filters and search works as expected', () async {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
-      final state = container.read(inspectionProvider);
-      expect(state.orders.isNotEmpty, true);
-
       final notifier = container.read(inspectionProvider.notifier);
+      await notifier.fetchOrders();
+      expect(container.read(inspectionProvider).orders.isNotEmpty, true);
 
       // Filter by SCHEDULED
       notifier.setFilter('SCHEDULED');
       final scheduledState = container.read(inspectionProvider);
       expect(scheduledState.activeFilter, 'SCHEDULED');
       for (final order in scheduledState.filteredOrders) {
-        expect(order.status == 'SCHEDULED' || order.status == 'CONFIRMED_PENDING_DISPATCH', true);
+        expect(
+          order.status == 'SCHEDULED' ||
+              order.status == 'CONFIRMED_PENDING_DISPATCH',
+          true,
+        );
       }
 
       // Search by query
@@ -116,11 +213,12 @@ void main() {
       expect(searchState.filteredOrders.first.postTitle, contains('Daikin'));
     });
 
-    test('Updating checklist item updates state correctly', () {
+    test('Updating checklist item updates state correctly', () async {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
       final notifier = container.read(inspectionProvider.notifier);
+      await notifier.fetchChecklistForOrder('INS-01');
       notifier.updateChecklistItem('chk-01', true, 'Vỏ máy đẹp', null);
 
       final state = container.read(inspectionProvider);
@@ -129,29 +227,35 @@ void main() {
       expect(item.inspectorNote, 'Vỏ máy đẹp');
     });
 
-    test('Submit inspection result updates order to PASSED with seal and score', () async {
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
+    test(
+      'Submit inspection result updates order to PASSED with seal and score',
+      () async {
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
 
-      final notifier = container.read(inspectionProvider.notifier);
-      final firstOrderId = container.read(inspectionProvider).orders.first.id;
+        final notifier = container.read(inspectionProvider.notifier);
+        await notifier.fetchOrders();
+        final firstOrderId = container.read(inspectionProvider).orders.first.id;
 
-      final ok = await notifier.submitInspectionResult(
-        orderId: firstOrderId,
-        status: 'PASSED',
-        conditionScore: 95,
-        conditionGrade: 'S - Nguyên Bản Mới',
-        tamperSealId: 'SL-SEAL-TEST-99',
-        note: 'Đạt chuẩn',
-      );
+        final ok = await notifier.submitInspectionResult(
+          orderId: firstOrderId,
+          status: 'PASSED',
+          conditionScore: 95,
+          conditionGrade: 'S - Nguyên Bản Mới',
+          tamperSealId: 'SL-SEAL-TEST-99',
+          note: 'Đạt chuẩn',
+        );
 
-      expect(ok, true);
-      final state = container.read(inspectionProvider);
-      final updatedOrder = state.orders.firstWhere((o) => o.id == firstOrderId);
-      expect(updatedOrder.status, 'PASSED');
-      expect(updatedOrder.conditionScore, 95);
-      expect(updatedOrder.tamperSealId, 'SL-SEAL-TEST-99');
-    });
+        expect(ok, true);
+        final state = container.read(inspectionProvider);
+        final updatedOrder = state.orders.firstWhere(
+          (o) => o.id == firstOrderId,
+        );
+        expect(updatedOrder.status, 'PASSED');
+        expect(updatedOrder.conditionScore, 95);
+        expect(updatedOrder.tamperSealId, 'SL-SEAL-TEST-99');
+      },
+    );
 
     test('Verify seal and record seal scan', () async {
       final container = ProviderContainer();
@@ -174,7 +278,7 @@ void main() {
       expect(recordOk, true);
 
       final state = container.read(inspectionProvider);
-      expect(state.verifiedSeal!.scanHistory.length, greaterThanOrEqualTo(2));
+      expect(state.verifiedSeal!.scanHistory.length, greaterThanOrEqualTo(1));
     });
   });
 }

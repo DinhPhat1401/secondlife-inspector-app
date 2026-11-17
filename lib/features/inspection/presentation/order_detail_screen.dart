@@ -25,18 +25,24 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
     if (widget.order != null) {
       _currentOrder = widget.order!;
     } else if (widget.orderId != null) {
-      _currentOrder = orders.where((o) => o.id == widget.orderId).firstOrNull ??
+      _currentOrder =
+          orders.where((o) => o.id == widget.orderId).firstOrNull ??
           ref.read(inspectionProvider).selectedOrder ??
           orders.first;
     } else {
-      _currentOrder = ref.read(inspectionProvider).selectedOrder ?? orders.first;
+      _currentOrder =
+          ref.read(inspectionProvider).selectedOrder ?? orders.first;
     }
   }
 
   void _showScheduleModal() async {
-    DateTime selectedDate = _currentOrder.appointmentScheduledAt ?? DateTime.now().add(const Duration(hours: 2));
+    DateTime selectedDate =
+        _currentOrder.appointmentScheduledAt ??
+        DateTime.now().add(const Duration(hours: 2));
     TimeOfDay selectedTime = TimeOfDay.fromDateTime(selectedDate);
-    final noteController = TextEditingController(text: _currentOrder.note ?? '');
+    final noteController = TextEditingController(
+      text: _currentOrder.note ?? '',
+    );
 
     await showModalBottomSheet(
       context: context,
@@ -62,14 +68,21 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                   SizedBox(width: 8),
                   Text(
                     'Xếp Lịch Hẹn Đến Kiểm Định',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.slate900),
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.slate900,
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: 16),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.date_range, color: AppColors.slate600),
+                leading: const Icon(
+                  Icons.date_range,
+                  color: AppColors.slate600,
+                ),
                 title: const Text('Ngày hẹn'),
                 subtitle: Text(DateFormat('dd/MM/yyyy').format(selectedDate)),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 14),
@@ -96,7 +109,10 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
               const Divider(),
               ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.access_time, color: AppColors.slate600),
+                leading: const Icon(
+                  Icons.access_time,
+                  color: AppColors.slate600,
+                ),
                 title: const Text('Giờ hẹn'),
                 subtitle: Text(selectedTime.format(context)),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 14),
@@ -123,7 +139,8 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
               TextField(
                 controller: noteController,
                 decoration: const InputDecoration(
-                  labelText: 'Ghi chú cho Người bán (VD: Mang dụng cụ test áp suất)',
+                  labelText:
+                      'Ghi chú cho Người bán (VD: Mang dụng cụ test áp suất)',
                 ),
                 maxLines: 2,
               ),
@@ -131,7 +148,9 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
               ElevatedButton(
                 onPressed: () async {
                   Navigator.pop(ctx);
-                  final success = await ref.read(inspectionProvider.notifier).scheduleAppointment(
+                  final success = await ref
+                      .read(inspectionProvider.notifier)
+                      .scheduleAppointment(
                         _currentOrder.id,
                         selectedDate,
                         noteController.text,
@@ -146,7 +165,9 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                     });
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Đã cập nhật lịch hẹn kiểm định thành công!'),
+                        content: Text(
+                          'Đã cập nhật lịch hẹn kiểm định thành công!',
+                        ),
                         backgroundColor: AppColors.passGreen,
                       ),
                     );
@@ -167,8 +188,13 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
       final enteredCode = await showDialog<String>(
         context: context,
         builder: (ctx) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Nhập Mã Check-In Tại Nhà', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text(
+            'Nhập Mã Check-In Tại Nhà',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -189,11 +215,19 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Hủy')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Hủy'),
+            ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+              ),
               onPressed: () => Navigator.pop(ctx, codeCtrl.text.trim()),
-              child: const Text('Xác nhận', style: TextStyle(color: Colors.white)),
+              child: const Text(
+                'Xác nhận',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         ),
@@ -201,10 +235,9 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
 
       if (enteredCode == null || enteredCode.isEmpty) return;
 
-      final updated = await ref.read(inspectionProvider.notifier).startInspection(
-            _currentOrder.id,
-            checkInCode: enteredCode,
-          );
+      final updated = await ref
+          .read(inspectionProvider.notifier)
+          .startInspection(_currentOrder.id, checkInCode: enteredCode);
       if (updated != null && mounted) {
         setState(() {
           _currentOrder = updated;
@@ -217,14 +250,18 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
         );
       }
     } else {
-      final updated = await ref.read(inspectionProvider.notifier).startInspection(_currentOrder.id);
+      final updated = await ref
+          .read(inspectionProvider.notifier)
+          .startInspection(_currentOrder.id);
       if (updated != null && mounted) {
         setState(() {
           _currentOrder = updated;
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Đã bắt đầu kiểm định tại trung tâm! Trạng thái: INSPECTING'),
+            content: Text(
+              'Đã bắt đầu kiểm định tại trung tâm! Trạng thái: INSPECTING',
+            ),
             backgroundColor: AppColors.primary,
           ),
         );
@@ -234,12 +271,17 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final currencyFormatter = NumberFormat.currency(locale: 'vi_VN', symbol: 'đ');
+    final currencyFormatter = NumberFormat.currency(
+      locale: 'vi_VN',
+      symbol: 'đ',
+    );
     final dateFormatter = DateFormat('HH:mm - dd/MM/yyyy');
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Đơn kiểm định #${_currentOrder.id.length > 8 ? _currentOrder.id.substring(0, 8).toUpperCase() : _currentOrder.id}'),
+        title: Text(
+          'Đơn kiểm định #${_currentOrder.id.length > 8 ? _currentOrder.id.substring(0, 8).toUpperCase() : _currentOrder.id}',
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -252,7 +294,11 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                 padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
-                    const Icon(Icons.shield_outlined, color: AppColors.primaryDark, size: 36),
+                    const Icon(
+                      Icons.shield_outlined,
+                      color: AppColors.primaryDark,
+                      size: 36,
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -271,7 +317,10 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                             _currentOrder.isAtHome
                                 ? 'Gói kiểm định TẠI NHÀ NGƯỜI BÁN'
                                 : 'Gói kiểm định TẠI TRUNG TÂM SECONDLIFE',
-                            style: const TextStyle(fontSize: 12, color: AppColors.primaryDark),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.primaryDark,
+                            ),
                           ),
                         ],
                       ),
@@ -288,13 +337,23 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Sản phẩm kiểm định', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    const Text(
+                      'Sản phẩm kiểm định',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
                     const SizedBox(height: 12),
                     Row(
                       children: [
                         ClipRRect(
                           borderRadius: BorderRadius.circular(8),
-                          child: _currentOrder.postImageUrls.isNotEmpty && _currentOrder.postImageUrls.first.trim().isNotEmpty
+                          child:
+                              _currentOrder.postImageUrls.isNotEmpty &&
+                                  _currentOrder.postImageUrls.first
+                                      .trim()
+                                      .isNotEmpty
                               ? Image.network(
                                   _currentOrder.postImageUrls.first,
                                   width: 80,
@@ -304,14 +363,20 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                                     width: 80,
                                     height: 80,
                                     color: AppColors.slate100,
-                                    child: const Icon(Icons.devices, color: AppColors.slate400),
+                                    child: const Icon(
+                                      Icons.devices,
+                                      color: AppColors.slate400,
+                                    ),
                                   ),
                                 )
                               : Container(
                                   width: 80,
                                   height: 80,
                                   color: AppColors.slate100,
-                                  child: const Icon(Icons.devices, color: AppColors.slate400),
+                                  child: const Icon(
+                                    Icons.devices,
+                                    color: AppColors.slate400,
+                                  ),
                                 ),
                         ),
                         const SizedBox(width: 12),
@@ -321,12 +386,20 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                             children: [
                               Text(
                                 _currentOrder.postTitle,
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                currencyFormatter.format(_currentOrder.postPrice),
-                                style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
+                                currencyFormatter.format(
+                                  _currentOrder.postPrice,
+                                ),
+                                style: const TextStyle(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ],
                           ),
@@ -345,7 +418,13 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Thông tin các bên', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    const Text(
+                      'Thông tin các bên',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
                     const SizedBox(height: 12),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -353,7 +432,11 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                         const CircleAvatar(
                           radius: 16,
                           backgroundColor: AppColors.slate100,
-                          child: Icon(Icons.store, size: 16, color: AppColors.primary),
+                          child: Icon(
+                            Icons.store,
+                            size: 16,
+                            color: AppColors.primary,
+                          ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -362,15 +445,25 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                             children: [
                               Text(
                                 'Người bán: ${_currentOrder.sellerName}',
-                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
                               ),
                               Text(
                                 _currentOrder.sellerAddress ?? '',
-                                style: const TextStyle(fontSize: 12, color: AppColors.slate600),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.slate600,
+                                ),
                               ),
                               Text(
                                 'SĐT: ${_currentOrder.sellerPhone ?? "N/A"}',
-                                style: const TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.w600),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ],
                           ),
@@ -383,7 +476,11 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                         const CircleAvatar(
                           radius: 16,
                           backgroundColor: AppColors.slate100,
-                          child: Icon(Icons.person, size: 16, color: AppColors.slate600),
+                          child: Icon(
+                            Icons.person,
+                            size: 16,
+                            color: AppColors.slate600,
+                          ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -392,11 +489,17 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                             children: [
                               Text(
                                 'Người mua: ${_currentOrder.buyerName}',
-                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
                               ),
                               Text(
                                 'SĐT: ${_currentOrder.buyerPhone ?? "N/A"}',
-                                style: const TextStyle(fontSize: 12, color: AppColors.slate600),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.slate600,
+                                ),
                               ),
                             ],
                           ),
@@ -415,31 +518,76 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Phí kiểm định & Phụ cấp di chuyển', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    const Text(
+                      'Phí kiểm định & Phụ cấp di chuyển',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
                     const SizedBox(height: 12),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Phí dịch vụ kỹ thuật:', style: TextStyle(color: AppColors.slate600, fontSize: 13)),
-                        Text(currencyFormatter.format(_currentOrder.inspectionFee), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                        const Text(
+                          'Phí dịch vụ kỹ thuật:',
+                          style: TextStyle(
+                            color: AppColors.slate600,
+                            fontSize: 13,
+                          ),
+                        ),
+                        Text(
+                          currencyFormatter.format(_currentOrder.inspectionFee),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 8),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Quãng đường di chuyển (${_currentOrder.travelDistanceKm} km):', style: const TextStyle(color: AppColors.slate600, fontSize: 13)),
-                        Text(currencyFormatter.format(_currentOrder.travelFee), style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.mapBlue, fontSize: 13)),
+                        Text(
+                          'Quãng đường di chuyển (${_currentOrder.travelDistanceKm} km):',
+                          style: const TextStyle(
+                            color: AppColors.slate600,
+                            fontSize: 13,
+                          ),
+                        ),
+                        Text(
+                          currencyFormatter.format(_currentOrder.travelFee),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.mapBlue,
+                            fontSize: 13,
+                          ),
+                        ),
                       ],
                     ),
                     const Divider(height: 20),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Phụ cấp KTV nhận được:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.slate900)),
+                        const Text(
+                          'Phụ cấp KTV nhận được:',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: AppColors.slate900,
+                          ),
+                        ),
                         Text(
-                          currencyFormatter.format(_currentOrder.inspectionFee * 0.7 + _currentOrder.travelFee),
-                          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: AppColors.passGreen),
+                          currencyFormatter.format(
+                            _currentOrder.inspectionFee * 0.7 +
+                                _currentOrder.travelFee,
+                          ),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
+                            color: AppColors.passGreen,
+                          ),
                         ),
                       ],
                     ),
@@ -454,18 +602,34 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                 padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
-                    const Icon(Icons.access_time_filled, color: AppColors.amber, size: 28),
+                    const Icon(
+                      Icons.access_time_filled,
+                      color: AppColors.amber,
+                      size: 28,
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Thời gian lịch hẹn', style: TextStyle(color: AppColors.slate500, fontSize: 12)),
+                          const Text(
+                            'Thời gian lịch hẹn',
+                            style: TextStyle(
+                              color: AppColors.slate500,
+                              fontSize: 12,
+                            ),
+                          ),
                           Text(
                             _currentOrder.appointmentScheduledAt != null
-                                ? dateFormatter.format(_currentOrder.appointmentScheduledAt!)
+                                ? dateFormatter.format(
+                                    _currentOrder.appointmentScheduledAt!,
+                                  )
                                 : 'Chưa xếp lịch',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.slate900),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: AppColors.slate900,
+                            ),
                           ),
                         ],
                       ),
@@ -473,7 +637,10 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                     OutlinedButton(
                       onPressed: _showScheduleModal,
                       style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                       ),
                       child: const Text('Đổi Lịch'),
                     ),
@@ -497,56 +664,55 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                   children: [
                     const Row(
                       children: [
-                        Icon(Icons.event_repeat_rounded, color: AppColors.secondary, size: 20),
+                        Icon(
+                          Icons.event_repeat_rounded,
+                          color: AppColors.secondary,
+                          size: 20,
+                        ),
                         SizedBox(width: 8),
                         Text(
                           'Khách Hàng Đã Đề Xuất Giờ Khác',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.slate900),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: AppColors.slate900,
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 6),
                     Text(
                       'Khung giờ mới: ${dateFormatter.format(_currentOrder.counterScheduledAt!)}${_currentOrder.counterShift != null ? " (${_currentOrder.counterShift})" : ""}',
-                      style: const TextStyle(fontSize: 12, color: AppColors.slate800, fontWeight: FontWeight.w600),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.slate800,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                    if (_currentOrder.counterNote != null && _currentOrder.counterNote!.isNotEmpty) ...[
+                    if (_currentOrder.counterNote != null &&
+                        _currentOrder.counterNote!.isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Text(
                         'Ghi chú: "${_currentOrder.counterNote}"',
-                        style: const TextStyle(fontSize: 11, color: AppColors.slate600, fontStyle: FontStyle.italic),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppColors.slate600,
+                          fontStyle: FontStyle.italic,
+                        ),
                       ),
                     ],
                     const SizedBox(height: 10),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                        ),
-                        icon: const Icon(Icons.check_rounded, size: 16),
-                        label: const Text('Tiếp Nhận Khung Giờ Mới Này', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                        onPressed: () async {
-                          final messenger = ScaffoldMessenger.of(context);
-                          final updated = await ref.read(inspectionProvider.notifier).acceptCounterAppointment(_currentOrder.id);
-                          if (!mounted) return;
-                          if (updated != null) {
-                            setState(() => _currentOrder = updated);
-                            messenger.showSnackBar(
-                              const SnackBar(content: Text('Đã chấp nhận khung giờ mới thành công!'), backgroundColor: AppColors.passGreen),
-                            );
-                          }
-                        },
-                      ),
+                    const Text(
+                      'Người bán cần xác nhận khung giờ này trong Seller app.',
+                      style: TextStyle(fontSize: 12, color: AppColors.slate600),
                     ),
                   ],
                 ),
               ),
             ],
 
-            if (_currentOrder.status == 'SCHEDULED' || _currentOrder.status == 'CONFIRMED_PENDING_DISPATCH')
+            if (_currentOrder.status == 'SCHEDULED' ||
+                _currentOrder.status == 'CONFIRMED_PENDING_DISPATCH')
               ElevatedButton.icon(
                 onPressed: _startInspection,
                 icon: const Icon(Icons.play_arrow_rounded),
@@ -559,7 +725,9 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
             else if (_currentOrder.status == 'INSPECTING')
               ElevatedButton.icon(
                 onPressed: () {
-                  ref.read(inspectionProvider.notifier).selectOrder(_currentOrder);
+                  ref
+                      .read(inspectionProvider.notifier)
+                      .selectOrder(_currentOrder);
                   context.push('/checklist-execution', extra: _currentOrder);
                 },
                 icon: const Icon(Icons.fact_check),
@@ -571,7 +739,9 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
             else
               OutlinedButton.icon(
                 onPressed: () {
-                  ref.read(inspectionProvider.notifier).selectOrder(_currentOrder);
+                  ref
+                      .read(inspectionProvider.notifier)
+                      .selectOrder(_currentOrder);
                   context.push('/checklist-execution', extra: _currentOrder);
                 },
                 icon: const Icon(Icons.assessment_outlined),

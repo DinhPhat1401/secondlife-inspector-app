@@ -7,6 +7,7 @@ import '../../features/splash/presentation/splash_screen.dart';
 import '../../features/dashboard/inspector_shell_screen.dart';
 import '../../features/inspection/models/inspection_order.dart';
 import '../../features/inspection/presentation/checklist_execution_screen.dart';
+import '../../features/inspection/presentation/checklist_route_screen.dart';
 import '../../features/inspection/presentation/order_detail_screen.dart';
 import '../../features/inspection/presentation/seal_scanner_screen.dart';
 import '../../features/inspection/presentation/seal_verification_screen.dart';
@@ -82,9 +83,23 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/checklist-execution',
-        builder: (context, state) => state.extra is InspectionOrder
-            ? ChecklistExecutionScreen(order: state.extra as InspectionOrder)
-            : const InspectorShellScreen(),
+        builder: (context, state) {
+          if (state.extra is InspectionOrder) {
+            return ChecklistExecutionScreen(
+              order: state.extra as InspectionOrder,
+            );
+          }
+          if (state.extra is String) {
+            return ChecklistRouteScreen(orderId: state.extra as String);
+          }
+          return const _MissingInspectionRouteScreen();
+        },
+      ),
+      GoRoute(
+        path: '/inspections/:inspectionId/result',
+        builder: (context, state) => ChecklistRouteScreen(
+          orderId: state.pathParameters['inspectionId']!,
+        ),
       ),
       GoRoute(
         path: '/seal-scanner',
@@ -106,3 +121,21 @@ final routerProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
+
+class _MissingInspectionRouteScreen extends StatelessWidget {
+  const _MissingInspectionRouteScreen();
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Checklist kiểm định')),
+    body: const Center(
+      child: Padding(
+        padding: EdgeInsets.all(24),
+        child: Text(
+          'Thiếu mã đơn kiểm định. Hãy mở checklist từ một đơn được phân công.',
+          textAlign: TextAlign.center,
+        ),
+      ),
+    ),
+  );
+}

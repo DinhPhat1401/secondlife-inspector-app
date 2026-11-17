@@ -9,6 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  secondlife_responsive:
+    path: ../Shared/secondlife_responsive
   cupertino_icons: ^1.0.8
   dio: ^5.11.1
   flutter_riverpod: ^3.4.3

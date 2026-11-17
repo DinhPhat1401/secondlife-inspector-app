@@ -103,7 +103,9 @@ class InspectionNotifier extends Notifier<InspectionState> {
 
   @override
   InspectionState build() {
-    Future.microtask(() => fetchOrders());
+    Future.microtask(() {
+      if (ref.mounted) fetchOrders();
+    });
     return const InspectionState();
   }
 
@@ -171,6 +173,7 @@ class InspectionNotifier extends Notifier<InspectionState> {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
       final response = await _api.dio.get(ApiEndpoints.myAssignedOrders);
+      if (!ref.mounted) return;
       final data = response.data;
       List<dynamic> rawList = [];
       if (data is List) {
@@ -186,6 +189,7 @@ class InspectionNotifier extends Notifier<InspectionState> {
           .toList();
       state = state.copyWith(orders: list, isLoading: false);
     } catch (e) {
+      if (!ref.mounted) return;
       state = state.copyWith(
         isLoading: false,
         errorMessage: _extractErrorMessage(
@@ -280,6 +284,11 @@ class InspectionNotifier extends Notifier<InspectionState> {
         _syncOrderInState(parsed, isSubmitting: false, errorMessage: null);
         return true;
       }
+      state = state.copyWith(
+        isSubmitting: false,
+        errorMessage: 'Máy chủ không trả về đơn kiểm định đã cập nhật.',
+      );
+      return false;
     } catch (e) {
       state = state.copyWith(
         isSubmitting: false,
@@ -287,28 +296,6 @@ class InspectionNotifier extends Notifier<InspectionState> {
       );
       return false;
     }
-
-    final updatedOrders = state.orders.map((o) {
-      if (o.id == orderId) {
-        return o.copyWith(
-          status: 'SCHEDULED',
-          appointmentScheduledAt: time,
-          note: note,
-        );
-      }
-      return o;
-    }).toList();
-
-    state = state.copyWith(
-      orders: updatedOrders,
-      selectedOrder: state.selectedOrder?.copyWith(
-        status: 'SCHEDULED',
-        appointmentScheduledAt: time,
-        note: note,
-      ),
-      isSubmitting: false,
-    );
-    return true;
   }
 
   Future<InspectionOrder?> startInspection(
@@ -331,31 +318,18 @@ class InspectionNotifier extends Notifier<InspectionState> {
       );
 
       final parsed = _parseOrderDto(response.data);
-      final fallbackCheckedInAt = hasCheckInCode ? DateTime.now() : null;
-
       if (parsed != null) {
-        final merged = parsed.copyWith(
-          status: 'INSPECTING',
-          homeCheckedInAt: parsed.homeCheckedInAt ?? fallbackCheckedInAt,
-        );
-        _syncOrderInState(merged, isSubmitting: false, errorMessage: null);
-        return merged;
+        _syncOrderInState(parsed, isSubmitting: false, errorMessage: null);
+        return parsed;
       }
-
-      final existing =
-          state.orders.where((o) => o.id == orderId).firstOrNull ??
-          state.selectedOrder;
-      if (existing != null) {
-        final updated = existing.copyWith(
-          status: 'INSPECTING',
-          homeCheckedInAt: existing.homeCheckedInAt ?? fallbackCheckedInAt,
-        );
-        _syncOrderInState(updated, isSubmitting: false, errorMessage: null);
-        return updated;
-      }
-
-      state = state.copyWith(isSubmitting: false);
-      return null;
+      final latest = await fetchOrderDetail(orderId);
+      state = state.copyWith(
+        isSubmitting: false,
+        errorMessage: latest?.status == 'INSPECTING'
+            ? null
+            : 'Máy chủ không trả về trạng thái kiểm định đã cập nhật.',
+      );
+      return latest?.status == 'INSPECTING' ? latest : null;
     } catch (e) {
       final errMsg = _extractErrorMessage(
         e,
@@ -537,10 +511,19 @@ class InspectionNotifier extends Notifier<InspectionState> {
     final cleanBarcode = (barcode != null && barcode.trim().isNotEmpty)
         ? barcode.trim()
         : cleanSealId;
-    final cleanPhotos = (evidencePhotoUrls ?? const <String>[])
-        .map((e) => e.trim())
-        .where((e) => e.isNotEmpty)
-        .toList();
+    final cleanPhotos = {
+      ...(evidencePhotoUrls ?? const <String>[]),
+      ...state.currentChecklist.map((item) => item.photoProofUrl ?? ''),
+    }.map((url) => url.trim()).where((url) => url.isNotEmpty).toList();
+
+    if (cleanPhotos.length > 10) {
+      state = state.copyWith(
+        isSubmitting: false,
+        errorMessage:
+            'Backend chỉ chấp nhận tối đa 10 ảnh minh chứng cho một biên bản.',
+      );
+      return false;
+    }
 
     final Map<String, dynamic> payload = {
       'status': status,
@@ -548,8 +531,7 @@ class InspectionNotifier extends Notifier<InspectionState> {
       'conditionGrade': conditionGrade,
       'note': ?cleanNote,
       'checklistResults': checklistDto,
-      if (cleanPhotos.isNotEmpty || isAtCenter)
-        'evidencePhotoUrls': cleanPhotos,
+      if (cleanPhotos.isNotEmpty) 'evidencePhotoUrls': cleanPhotos,
       'videoProofUrl': ?cleanVideoUrl,
       'unboxingVideoUrl': ?cleanUnboxingUrl,
     };
@@ -571,46 +553,18 @@ class InspectionNotifier extends Notifier<InspectionState> {
 
       final parsed = _parseOrderDto(response.data);
       if (parsed != null) {
-        final merged = parsed.copyWith(
-          status: parsed.status.isNotEmpty ? parsed.status : status,
-          conditionScore: parsed.conditionScore ?? conditionScore,
-          conditionGrade: parsed.conditionGrade ?? conditionGrade,
-          tamperSealId: isAtCenter
-              ? parsed.tamperSealId
-              : (parsed.tamperSealId ?? cleanSealId),
-          barcode: isAtCenter
-              ? parsed.barcode
-              : (parsed.barcode ?? cleanBarcode),
-          videoProofUrl: parsed.videoProofUrl ?? cleanVideoUrl,
-          unboxingVideoUrl: parsed.unboxingVideoUrl ?? cleanUnboxingUrl,
-          evidencePhotoUrls: parsed.evidencePhotoUrls.isNotEmpty
-              ? parsed.evidencePhotoUrls
-              : cleanPhotos,
-          note: parsed.note ?? cleanNote,
-        );
-        _syncOrderInState(merged, isSubmitting: false, errorMessage: null);
+        _syncOrderInState(parsed, isSubmitting: false, errorMessage: null);
       } else {
-        final existing =
-            state.orders.where((o) => o.id == orderId).firstOrNull ??
-            state.selectedOrder;
-        if (existing != null) {
-          final updated = existing.copyWith(
-            status: status,
-            conditionScore: conditionScore,
-            conditionGrade: conditionGrade,
-            tamperSealId: isAtCenter ? existing.tamperSealId : cleanSealId,
-            barcode: isAtCenter ? existing.barcode : cleanBarcode,
-            videoProofUrl: cleanVideoUrl,
-            unboxingVideoUrl: cleanUnboxingUrl,
-            evidencePhotoUrls: cleanPhotos.isNotEmpty
-                ? cleanPhotos
-                : existing.evidencePhotoUrls,
-            note: cleanNote,
+        final latest = await fetchOrderDetail(orderId);
+        if (latest == null ||
+            (latest.status != status && !latest.isCompleted)) {
+          state = state.copyWith(
+            isSubmitting: false,
+            errorMessage: 'Máy chủ không xác nhận kết quả kiểm định đã nộp.',
           );
-          _syncOrderInState(updated, isSubmitting: false, errorMessage: null);
-        } else {
-          state = state.copyWith(isSubmitting: false);
+          return false;
         }
+        _syncOrderInState(latest, isSubmitting: false, errorMessage: null);
       }
 
       try {
@@ -759,49 +713,7 @@ class InspectionNotifier extends Notifier<InspectionState> {
       return false;
     }
 
-    if (state.verifiedSeal != null &&
-        state.verifiedSeal!.tamperSealId.toLowerCase() ==
-            tamperSealId.toLowerCase()) {
-      final newLog = InspectionSealLog(
-        id: 'log-${DateTime.now().millisecondsSinceEpoch}',
-        tamperSealId: tamperSealId,
-        scannedByName: 'KTV. Trần Minh Long',
-        scanStage: scanStage,
-        sealCondition: sealCondition,
-        locationText:
-            locationText ??
-            (currentLat != null
-                ? 'Tọa độ GPS ($currentLat, $currentLng)'
-                : 'Vị trí hiện tại KTV'),
-        latitude: currentLat,
-        longitude: currentLng,
-        note: note,
-        scannedAt: DateTime.now(),
-      );
-
-      final updatedHistory = [newLog, ...state.verifiedSeal!.scanHistory];
-      final updatedCert = InspectionSealVerification(
-        tamperSealId: state.verifiedSeal!.tamperSealId,
-        inspectionOrderId: state.verifiedSeal!.inspectionOrderId,
-        postId: state.verifiedSeal!.postId,
-        productTitle: state.verifiedSeal!.productTitle,
-        productImageUrl: state.verifiedSeal!.productImageUrl,
-        productModel: state.verifiedSeal!.productModel,
-        productBrand: state.verifiedSeal!.productBrand,
-        conditionScore: state.verifiedSeal!.conditionScore,
-        conditionGrade: state.verifiedSeal!.conditionGrade,
-        inspectionStatus: state.verifiedSeal!.inspectionStatus,
-        inspectionCenterName: state.verifiedSeal!.inspectionCenterName,
-        inspectorName: state.verifiedSeal!.inspectorName,
-        inspectedAt: state.verifiedSeal!.inspectedAt,
-        currentSealStatus: sealCondition,
-        isOfficialSecondLifeSeal: state.verifiedSeal!.isOfficialSecondLifeSeal,
-        reportSummary: state.verifiedSeal!.reportSummary,
-        scanHistory: updatedHistory,
-      );
-
-      state = state.copyWith(verifiedSeal: updatedCert);
-    }
+    await verifySeal(tamperSealId);
     return true;
   }
 }

@@ -1,6 +1,4 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/network/api_client.dart';
-import '../../../core/network/api_endpoints.dart';
 import '../models/inspector_stats_models.dart';
 
 class InspectorStatsState {
@@ -74,8 +72,6 @@ class InspectorStatsState {
 }
 
 class InspectorStatsNotifier extends Notifier<InspectorStatsState> {
-  final ApiClient _api = ApiClient();
-
   @override
   InspectorStatsState build() {
     final now = DateTime.now();
@@ -93,104 +89,18 @@ class InspectorStatsNotifier extends Notifier<InspectorStatsState> {
   Future<void> fetchStats({int? month, int? year}) async {
     final targetMonth = month ?? state.selectedMonth;
     final targetYear = year ?? state.selectedYear;
-
     state = state.copyWith(
+      stats: null,
       isLoadingStats: true,
       selectedMonth: targetMonth,
       selectedYear: targetYear,
+      statsError: null,
     );
-
-    try {
-      final response = await _api.dio.get(
-        ApiEndpoints.inspectorStats,
-        queryParameters: {
-          'month': targetMonth,
-          'year': targetYear,
-        },
-      );
-
-      final raw = response.data;
-      final data = (raw is Map && raw.containsKey('data')) ? raw['data'] : raw;
-      if (data is Map<String, dynamic>) {
-        final stats = InspectorStats.fromJson(data);
-        state = state.copyWith(
-          stats: stats,
-          isLoadingStats: false,
-          statsError: null,
-        );
-        return;
-      }
-    } catch (_) {
-      // Fallback sang tính toán trực tiếp từ danh sách đơn thực tế được gán từ Backend (/api/v1/inspector/orders)
-    }
-
-    try {
-      final ordersRes = await _api.dio.get(ApiEndpoints.myAssignedOrders);
-      final raw = ordersRes.data;
-      List<dynamic> rawList = [];
-      if (raw is List) {
-        rawList = raw;
-      } else if (raw is Map<String, dynamic>) {
-        final inner = raw['data'] ?? raw['items'] ?? raw['content'];
-        if (inner is List) rawList = inner;
-      }
-
-      int completed = 0;
-      int passed = 0;
-      int failed = 0;
-      double laborEarned = 0;
-      double travelEarned = 0;
-      double pendingSettlement = 0;
-
-      for (final item in rawList) {
-        if (item is! Map) continue;
-        final status = (item['status'] ?? '').toString().toUpperCase();
-        final baseFee = (item['baseInspectionFee'] as num?)?.toDouble() ??
-            (item['inspectionFee'] as num?)?.toDouble() ??
-            0.0;
-        final travelFee = (item['travelFee'] as num?)?.toDouble() ?? 0.0;
-
-        if (status == 'PASSED' || status == 'FAILED' || status == 'COMPLETED') {
-          completed++;
-          if (status == 'PASSED' || status == 'COMPLETED') {
-            passed++;
-          } else {
-            failed++;
-          }
-          laborEarned += baseFee;
-          travelEarned += travelFee;
-        } else if (status == 'INSPECTING' || status == 'SCHEDULED') {
-          pendingSettlement += (baseFee + travelFee);
-        }
-      }
-
-      final computedStats = InspectorStats(
-        inspectorId: '',
-        inspectorName: '',
-        badgeCode: '',
-        skillLevel: '',
-        completedJobs: completed,
-        passedJobs: passed,
-        failedJobs: failed,
-        averageRating: 0.0,
-        onTimeRate: 0.0,
-        monthlyEarnings: laborEarned + travelEarned,
-        laborFeeEarned: laborEarned,
-        travelAllowanceEarned: travelEarned,
-        pendingSettlementAmount: pendingSettlement,
-      );
-
-      state = state.copyWith(
-        stats: computedStats,
-        isLoadingStats: false,
-        statsError: null,
-      );
-    } catch (e) {
-      state = state.copyWith(
-        isLoadingStats: false,
-        statsError: 'Không thể tải thống kê: $e',
-      );
-    }
+    state = state.copyWith(
+      isLoadingStats: false,
+      statsError:
+          'Backend hiện chưa cung cấp API thống kê/thu nhập cho Inspector. Số liệu chưa thể xác minh.',
+    );
   }
 
   void changeMonthYear(int month, int year) {
@@ -206,96 +116,16 @@ class InspectorStatsNotifier extends Notifier<InspectorStatsState> {
       state = state.copyWith(isLoadingMorePayouts: true);
     }
 
-    try {
-      final response = await _api.dio.get(
-        ApiEndpoints.inspectorPayouts,
-        queryParameters: {
-          'page': page,
-          'size': 10,
-          'sort': 'completedAt,desc',
-        },
-      );
-
-      final raw = response.data;
-      final data = (raw is Map && raw.containsKey('data')) ? raw['data'] : raw;
-      if (data is Map<String, dynamic>) {
-        final payoutsPage = InspectorPayoutsPage.fromJson(data);
-        final currentList = refresh ? <InspectorPayout>[] : List<InspectorPayout>.from(state.payouts);
-
-        for (final item in payoutsPage.content) {
-          if (!currentList.any((p) => p.payoutId == item.payoutId)) {
-            currentList.add(item);
-          }
-        }
-
-        state = state.copyWith(
-          payouts: currentList,
-          isLoadingPayouts: false,
-          isLoadingMorePayouts: false,
-          payoutsCurrentPage: payoutsPage.pageNumber,
-          payoutsTotalPages: payoutsPage.totalPages,
-          payoutsTotalElements: payoutsPage.totalElements,
-          payoutsError: null,
-        );
-        return;
-      }
-    } catch (_) {
-      // Fallback sang tổng hợp lịch sử đối soát từ các đơn đã hoàn tất trên Backend (/api/v1/inspector/orders)
-    }
-
-    try {
-      final ordersRes = await _api.dio.get(ApiEndpoints.myAssignedOrders);
-      final raw = ordersRes.data;
-      List<dynamic> rawList = [];
-      if (raw is List) {
-        rawList = raw;
-      } else if (raw is Map<String, dynamic>) {
-        final inner = raw['data'] ?? raw['items'] ?? raw['content'];
-        if (inner is List) rawList = inner;
-      }
-
-      final derived = <InspectorPayout>[];
-      for (final item in rawList) {
-        if (item is! Map) continue;
-        final status = (item['status'] ?? '').toString().toUpperCase();
-        if (status != 'PASSED' && status != 'FAILED' && status != 'COMPLETED') continue;
-        final id = (item['id'] ?? '').toString();
-        final labor = (item['baseInspectionFee'] as num?)?.toDouble() ??
-            (item['inspectionFee'] as num?)?.toDouble() ??
-            0.0;
-        final travel = (item['travelFee'] as num?)?.toDouble() ?? 0.0;
-        final completedAtRaw = item['inspectedAt'] ?? item['updatedAt'] ?? item['createdAt'];
-        derived.add(
-          InspectorPayout(
-            payoutId: id,
-            orderId: id,
-            postTitle: (item['postTitle'] ?? 'Đơn kiểm định thiết bị').toString(),
-            orderType: (item['orderType'] ?? 'AT_CENTER').toString(),
-            completedAt: completedAtRaw != null ? DateTime.tryParse(completedAtRaw.toString()) : null,
-            laborFee: labor,
-            travelFee: travel,
-            totalPayout: labor + travel,
-            status: status == 'COMPLETED' ? 'SETTLED' : 'PENDING',
-          ),
-        );
-      }
-
-      state = state.copyWith(
-        payouts: derived,
-        isLoadingPayouts: false,
-        isLoadingMorePayouts: false,
-        payoutsCurrentPage: 0,
-        payoutsTotalPages: 1,
-        payoutsTotalElements: derived.length,
-        payoutsError: null,
-      );
-    } catch (e) {
-      state = state.copyWith(
-        isLoadingPayouts: false,
-        isLoadingMorePayouts: false,
-        payoutsError: 'Không thể tải lịch sử đối soát: $e',
-      );
-    }
+    state = state.copyWith(
+      payouts: refresh ? const [] : state.payouts,
+      isLoadingPayouts: false,
+      isLoadingMorePayouts: false,
+      payoutsTotalElements: 0,
+      payoutsCurrentPage: 0,
+      payoutsTotalPages: 1,
+      payoutsError:
+          'Backend hiện chưa cung cấp API lịch sử đối soát thù lao cho Inspector.',
+    );
   }
 
   Future<void> loadMorePayouts() async {
@@ -310,14 +140,11 @@ class InspectorStatsNotifier extends Notifier<InspectorStatsState> {
   }
 
   Future<void> refreshAll() async {
-    await Future.wait([
-      fetchStats(),
-      fetchPayouts(page: 0, refresh: true),
-    ]);
+    await Future.wait([fetchStats(), fetchPayouts(page: 0, refresh: true)]);
   }
 }
 
 final inspectorStatsProvider =
     NotifierProvider<InspectorStatsNotifier, InspectorStatsState>(() {
-  return InspectorStatsNotifier();
-});
+      return InspectorStatsNotifier();
+    });
